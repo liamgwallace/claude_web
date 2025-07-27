@@ -1,0 +1,56 @@
+[project]
+# Whether to enable telemetry (default: true). No personal data is collected.
+enable_telemetry = false
+
+[features]
+# Process and display mathematical expressions and latex (default: true)
+latex = true
+
+# Authorize users to upload files with messages (default: true)
+multi_modal = true
+
+# Allows user to use speech to text (default: true)
+speech_to_text = false
+
+[UI]
+# Name of the app and chatbot.
+name = "Claude Web Runner"
+
+# Show the readme while the thread is empty.
+show_readme_as_default = true
+
+# Description of the app and chatbot. This is used for HTML tags.
+description = "Web interface for Claude Code with project-based organization"
+
+# Large image to be displayed on the header. Can be hosted or local.
+large_image = ""
+
+# Small image to be displayed on the header. Can be hosted or local.
+avatar = ""
+
+# Chain of Thought (CoT) display mode. Can be "hidden", "tool_call" or "full" (default: "full").
+cot = "full"
+
+# Override default MUI light theme. (Check theme.ts)
+default_collapse_content = true
+
+# Override default MUI dark theme. (Check theme.ts)
+default_expand_messages = false
+
+# Hide the chain of thought details from the user in the UI.
+hide_cot = false
+
+# Link to your github repo. This will add a github button in the UI's header.
+# github = ""
+
+# Specify a CSS file that can be used to customize the user interface.
+# The CSS file can be served from the public directory or via an external link.
+# custom_css = "/public/test.css"
+
+# Override the theme. Theme is a light json dict containing primary and background colors.
+# Please use colors in hex format.
+# Example: theme = '{"primary": "#FF0000", "background": "#FFFFFF"}'
+# theme = ""
+
+[meta]
+generated_by = "1.3.1"

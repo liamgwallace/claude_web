@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, "3.10", "3.11"]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest
+    
+    - name: Create data directory
+      run: |
+        mkdir -p data/projects
+    
+    - name: Test imports and basic functionality
+      run: |
+        python -c "import flask; import chainlit; import requests; print('✅ All dependencies imported successfully')"
+        python -c "from claude_wrapper import ClaudeWrapper; print('✅ Claude wrapper imports successfully')"
+        python -c "from app import app; print('✅ Flask app imports successfully')"
+    
+    - name: Test API endpoints (without Claude CLI)
+      run: |
+        python -c "
+        from app import app
+        import json
+        
+        client = app.test_client()
+        
+        # Test health endpoint
+        response = client.get('/health')
+        assert response.status_code == 200
+        print('✅ Health endpoint works')
+        
+        # Test projects endpoint
+        response = client.get('/projects')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert 'projects' in data
+        print('✅ Projects endpoint works')
+        
+        print('✅ Basic API tests passed')
+        "
