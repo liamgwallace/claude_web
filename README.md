@@ -40,7 +40,7 @@ A simple web interface for interacting with Claude Code using project-based orga
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/yourusername/claude_web.git
+   git clone https://github.com/liamgwallace/claude_web.git
    cd claude_web
    ```
 
