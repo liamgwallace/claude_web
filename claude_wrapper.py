@@ -206,13 +206,18 @@ class ClaudeWrapper:
         
         try:
             # Build Claude CLI command
+            # Try to find Claude CLI executable
+            claude_cmd = self._find_claude_executable()
+            if not claude_cmd:
+                raise Exception("Claude CLI not found. Please ensure Claude CLI is installed and in PATH.")
+            
             if session_id:
                 # Resume existing session
-                cmd = ["claude", "--resume", session_id, "-p", message, "--output-format", "json"]
+                cmd = [claude_cmd, "--resume", session_id, "-p", message, "--output-format", "json"]
                 logger.info(f"Resuming session {session_id} for thread {thread_id}")
             else:
                 # Start new session
-                cmd = ["claude", "-p", message, "--output-format", "json"]
+                cmd = [claude_cmd, "-p", message, "--output-format", "json"]
                 logger.info(f"Starting new session for thread {thread_id}")
             
             result = subprocess.run(
@@ -263,6 +268,38 @@ class ClaudeWrapper:
             error_msg = f"Unexpected error: {str(e)}"
             logger.error(f"Error in project {project_name}, thread {thread_id}: {error_msg}")
             return False, error_msg, {}
+    
+    def _find_claude_executable(self) -> Optional[str]:
+        """Find Claude CLI executable on the system."""
+        import platform
+        import shutil
+        
+        # Common executable names to try
+        if platform.system() == "Windows":
+            candidates = ["claude.exe", "claude.cmd", "claude"]
+        else:
+            candidates = ["claude"]
+        
+        # Try to find in PATH
+        for candidate in candidates:
+            if shutil.which(candidate):
+                return candidate
+        
+        # Try common installation paths on Windows
+        if platform.system() == "Windows":
+            import os
+            common_paths = [
+                os.path.expanduser("~/.local/bin/claude.exe"),
+                os.path.expanduser("~/AppData/Local/Programs/Claude/claude.exe"),
+                "C:/Program Files/Claude/claude.exe",
+                "C:/Program Files (x86)/Claude/claude.exe"
+            ]
+            
+            for path in common_paths:
+                if os.path.exists(path):
+                    return path
+        
+        return None
     
     def get_messages(self, project_name: str, thread_id: str) -> Optional[List[Dict]]:
         """

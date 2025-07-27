@@ -132,9 +132,9 @@ async def display_project_navigation():
     projects = api_client.list_projects()
     
     actions = [
-        cl.Action(name="create_project", value="create", description="➕ Create New Project"),
-        cl.Action(name="list_projects", value="list", description="📋 List All Projects"),
-        cl.Action(name="help", value="help", description="❓ Help")
+        cl.Action(name="create_project", value="create", description="➕ Create New Project", label="➕ Create New Project"),
+        cl.Action(name="list_projects", value="list", description="📋 List All Projects", label="📋 List All Projects"),
+        cl.Action(name="help", value="help", description="❓ Help", label="❓ Help")
     ]
     
     # Add project selection actions
@@ -143,7 +143,8 @@ async def display_project_navigation():
             cl.Action(
                 name=f"select_project_{i}", 
                 value=f"select:{project['sanitized_name']}", 
-                description=f"📂 {project['name']}"
+                description=f"📂 {project['name']}",
+                label=f"📂 {project['name']}"
             )
         )
     
@@ -158,9 +159,9 @@ async def display_thread_navigation(project_name: str):
     threads = api_client.list_threads(project_name)
     
     actions = [
-        cl.Action(name="create_thread", value=f"create_thread:{project_name}", description="➕ Create New Thread"),
-        cl.Action(name="view_files", value=f"view_files:{project_name}", description="📁 View Files"),
-        cl.Action(name="back_to_projects", value="back", description="⬅️ Back to Projects")
+        cl.Action(name="create_thread", value=f"create_thread:{project_name}", description="➕ Create New Thread", label="➕ Create New Thread"),
+        cl.Action(name="view_files", value=f"view_files:{project_name}", description="📁 View Files", label="📁 View Files"),
+        cl.Action(name="back_to_projects", value="back", description="⬅️ Back to Projects", label="⬅️ Back to Projects")
     ]
     
     # Add thread selection actions
@@ -169,7 +170,8 @@ async def display_thread_navigation(project_name: str):
             cl.Action(
                 name=f"select_thread_{i}", 
                 value=f"select_thread:{project_name}:{thread['id']}", 
-                description=f"💬 {thread['name']} ({thread['message_count']} msgs)"
+                description=f"💬 {thread['name']} ({thread['message_count']} msgs)",
+                label=f"💬 {thread['name']} ({thread['message_count']} msgs)"
             )
         )
     

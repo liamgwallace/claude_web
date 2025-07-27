@@ -22,6 +22,9 @@ show_readme_as_default = true
 # Description of the app and chatbot. This is used for HTML tags.
 description = "Web interface for Claude Code with project-based organization"
 
+# Default language for the UI
+default_language = "en-US"
+
 # Large image to be displayed on the header. Can be hosted or local.
 large_image = ""
 

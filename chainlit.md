@@ -1,14 +1,14 @@
-# Welcome to Chainlit! 🚀🤖
+# 🚀 Welcome to Claude Web Runner!
 
-Hi there, Developer! 👋 We're excited to have you on board. Chainlit is a powerful tool designed to help you prototype, debug and share applications built on top of LLMs.
+This interface allows you to:
+- **Create and manage projects** - Organize your work into separate project folders
+- **Manage chat threads** - Have multiple conversations within each project  
+- **Work with Claude Code** - All Claude operations happen in your project directories
+- **View generated files** - See what Claude creates in your projects
 
-## Useful Links 🔗
+**Getting Started:**
+1. Create a new project or select an existing one
+2. Create a thread within that project
+3. Start chatting with Claude!
 
-- **Documentation:** Get started with our comprehensive [Chainlit Documentation](https://docs.chainlit.io) 📚
-- **Discord Community:** Join our friendly [Chainlit Discord](https://discord.gg/k73SQ3FyUh) to ask questions, share your projects, and connect with other developers! 💬
-
-We can't wait to see what you create with Chainlit! Happy coding! 💻😊
-
-## Welcome screen
-
-To modify the welcome screen, edit the `chainlit.md` file at the root of your project. If you do not want a welcome screen, just leave this file empty.
+All Claude Code operations will happen in your selected project's directory.
