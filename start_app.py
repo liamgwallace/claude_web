@@ -15,9 +15,18 @@ def check_dependencies():
     """Check if required dependencies are installed."""
     try:
         import flask
-        import chainlit
         import requests
-        print("✅ All dependencies are installed")
+        print("✅ Flask and requests are installed")
+        
+        # Check chainlit separately to handle potential issues
+        try:
+            import chainlit
+            print("✅ Chainlit is installed")
+        except Exception as e:
+            print(f"⚠️ Chainlit import issue: {e}")
+            print("📦 Try: pip install --upgrade chainlit pydantic")
+            return False
+            
         return True
     except ImportError as e:
         print(f"❌ Missing dependency: {e}")
