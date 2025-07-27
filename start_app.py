@@ -36,16 +36,24 @@ def check_dependencies():
 def check_claude_cli():
     """Check if Claude CLI is available."""
     try:
-        result = subprocess.run(['claude', '--help'], capture_output=True, text=True, timeout=5)
-        if result.returncode == 0:
-            print("✅ Claude CLI is available")
-            return True
-        else:
-            print("❌ Claude CLI not working properly")
-            return False
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        print("❌ Claude CLI is not installed or not in PATH")
-        print("📦 Please install Claude CLI: npm install -g @anthropic-ai/claude-code")
+        # Try different ways to find claude on Windows
+        claude_commands = ['claude', 'claude.cmd', 'npx claude']
+        
+        for cmd in claude_commands:
+            try:
+                result = subprocess.run([cmd, '--help'], capture_output=True, text=True, timeout=5, shell=True)
+                if result.returncode == 0:
+                    print(f"✅ Claude CLI is available ({cmd})")
+                    return True
+            except:
+                continue
+                
+        print("❌ Claude CLI not found in PATH from Python script")
+        print("💡 Try running from regular Command Prompt (not VS Code terminal)")
+        print("💡 Or restart your terminal after installing Claude CLI")
+        return False
+    except Exception as e:
+        print(f"❌ Error checking Claude CLI: {e}")
         return False
 
 def start_backend():
