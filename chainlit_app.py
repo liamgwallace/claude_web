@@ -132,9 +132,9 @@ async def display_project_navigation():
     projects = api_client.list_projects()
     
     actions = [
-        cl.Action(name="create_project", value="create", description="➕ Create New Project", label="➕ Create New Project"),
-        cl.Action(name="list_projects", value="list", description="📋 List All Projects", label="📋 List All Projects"),
-        cl.Action(name="help", value="help", description="❓ Help", label="❓ Help")
+        cl.Action(name="create_project", payload={"value": "create"}, label="➕ Create New Project", tooltip="Create a new project folder"),
+        cl.Action(name="list_projects", payload={"value": "list"}, label="📋 List All Projects", tooltip="Show all existing projects"),
+        cl.Action(name="help", payload={"value": "help"}, label="❓ Help", tooltip="Show help information")
     ]
     
     # Add project selection actions
@@ -142,9 +142,9 @@ async def display_project_navigation():
         actions.append(
             cl.Action(
                 name=f"select_project_{i}", 
-                value=f"select:{project['sanitized_name']}", 
-                description=f"📂 {project['name']}",
-                label=f"📂 {project['name']}"
+                payload={"value": f"select:{project['sanitized_name']}"},
+                label=f"📂 {project['name']}",
+                tooltip=f"Open project: {project['name']}"
             )
         )
     
@@ -159,9 +159,9 @@ async def display_thread_navigation(project_name: str):
     threads = api_client.list_threads(project_name)
     
     actions = [
-        cl.Action(name="create_thread", value=f"create_thread:{project_name}", description="➕ Create New Thread", label="➕ Create New Thread"),
-        cl.Action(name="view_files", value=f"view_files:{project_name}", description="📁 View Files", label="📁 View Files"),
-        cl.Action(name="back_to_projects", value="back", description="⬅️ Back to Projects", label="⬅️ Back to Projects")
+        cl.Action(name="create_thread", payload={"value": f"create_thread:{project_name}"}, label="➕ Create New Thread", tooltip="Create a new chat thread"),
+        cl.Action(name="view_files", payload={"value": f"view_files:{project_name}"}, label="📁 View Files", tooltip="Browse project files"),
+        cl.Action(name="back_to_projects", payload={"value": "back"}, label="⬅️ Back to Projects", tooltip="Return to project selection")
     ]
     
     # Add thread selection actions
@@ -169,9 +169,9 @@ async def display_thread_navigation(project_name: str):
         actions.append(
             cl.Action(
                 name=f"select_thread_{i}", 
-                value=f"select_thread:{project_name}:{thread['id']}", 
-                description=f"💬 {thread['name']} ({thread['message_count']} msgs)",
-                label=f"💬 {thread['name']} ({thread['message_count']} msgs)"
+                payload={"value": f"select_thread:{project_name}:{thread['id']}"},
+                label=f"💬 {thread['name']} ({thread['message_count']} msgs)",
+                tooltip=f"Start chatting in thread {thread['name']}"
             )
         )
     
@@ -326,7 +326,7 @@ async def back_to_projects_action(action):
 @cl.action_callback("create_thread")
 async def create_thread_action(action):
     """Handle create thread action."""
-    project_name = action.value.split(":", 1)[1]
+    project_name = action.payload["value"].split(":", 1)[1]
     await cl.Message(content=f"Enter a name for your new thread in project **{project_name}** (or press Enter for auto-generated):").send()
     cl.user_session.set("awaiting_thread_name", project_name)
 
@@ -334,7 +334,7 @@ async def create_thread_action(action):
 @cl.action_callback("view_files")
 async def view_files_action(action):
     """Handle view files action."""
-    project_name = action.value.split(":", 1)[1]
+    project_name = action.payload["value"].split(":", 1)[1]
     file_tree = api_client.get_files(project_name)
     
     if not file_tree:
@@ -355,7 +355,7 @@ for i in range(10):  # Support up to 10 projects in actions
     @cl.action_callback(f"select_project_{i}")
     async def select_project_action(action):
         """Handle project selection."""
-        project_name = action.value.split(":", 1)[1]
+        project_name = action.payload["value"].split(":", 1)[1]
         cl.user_session.set("current_project", project_name)
         await display_thread_navigation(project_name)
 
@@ -365,7 +365,7 @@ for i in range(10):  # Support up to 10 threads in actions
     @cl.action_callback(f"select_thread_{i}")
     async def select_thread_action(action):
         """Handle thread selection."""
-        parts = action.value.split(":", 2)
+        parts = action.payload["value"].split(":", 2)
         project_name = parts[1]
         thread_id = parts[2]
         
