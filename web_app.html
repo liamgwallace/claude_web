@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Web Runner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            height: 100vh;
+            background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            background: #2c3e50;
+            color: white;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .sidebar-toggle {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .sidebar-toggle:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .header-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+        }
+
+        /* Main Container */
+        .main-container {
+            flex: 1;
+            display: flex;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Left Sidebar */
+        .left-sidebar {
+            width: 300px;
+            background: white;
+            border-right: 1px solid #e1e5e9;
+            display: flex;
+            flex-direction: column;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            position: absolute;
+            height: 100%;
+            z-index: 50;
+            box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+        }
+
+        .left-sidebar.open {
+            transform: translateX(0);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #e1e5e9;
+            background: #f8f9fa;
+        }
+
+        .sidebar-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .project-info {
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .tree-view {
+            list-style: none;
+        }
+
+        .tree-item {
+            margin: 2px 0;
+        }
+
+        .tree-item-content {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background 0.2s;
+            user-select: none;
+        }
+
+        .tree-item-content:hover {
+            background: #f8f9fa;
+        }
+
+        .tree-item-content.selected {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .tree-icon {
+            margin-right: 8px;
+            font-size: 14px;
+        }
+
+        .tree-label {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .tree-children {
+            margin-left: 20px;
+            list-style: none;
+        }
+
+        .sidebar-footer {
+            border-top: 1px solid #e1e5e9;
+            padding: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .sidebar-btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            background: white;
+            color: #495057;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .sidebar-btn:hover {
+            background: #f8f9fa;
+            border-color: #adb5bd;
+        }
+
+        .sidebar-btn.primary {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        .sidebar-btn.primary:hover {
+            background: #0056b3;
+        }
+
+        .sidebar-btn.danger {
+            background: #dc3545;
+            color: white;
+            border-color: #dc3545;
+        }
+
+        .sidebar-btn.danger:hover {
+            background: #c82333;
+        }
+
+        /* Right Sidebar */
+        .right-sidebar {
+            width: 300px;
+            background: white;
+            border-left: 1px solid #e1e5e9;
+            display: flex;
+            flex-direction: column;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            position: absolute;
+            right: 0;
+            height: 100%;
+            z-index: 50;
+            box-shadow: -2px 0 4px rgba(0,0,0,0.1);
+        }
+
+        .right-sidebar.open {
+            transform: translateX(0);
+        }
+
+        /* Chat Area */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            transition: margin 0.3s ease;
+        }
+
+        .chat-area.left-open {
+            margin-left: 300px;
+        }
+
+        .chat-area.right-open {
+            margin-right: 300px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            display: flex;
+            max-width: 80%;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+        }
+
+        .message-bubble {
+            padding: 12px 16px;
+            border-radius: 18px;
+            max-width: 100%;
+            word-wrap: break-word;
+            line-height: 1.4;
+        }
+
+        .message.user .message-bubble {
+            background: #007bff;
+            color: white;
+            border-bottom-right-radius: 6px;
+        }
+
+        .message.assistant .message-bubble {
+            background: #f1f3f4;
+            color: #202124;
+            border-bottom-left-radius: 6px;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            margin: 0 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background: #007bff;
+        }
+
+        .message.assistant .message-avatar {
+            background: #34a853;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            margin: 0 20px;
+            color: #6c757d;
+            font-size: 14px;
+            font-style: italic;
+        }
+
+        .status-dots {
+            display: inline-flex;
+            gap: 4px;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #6c757d;
+            animation: pulse 1.4s infinite;
+        }
+
+        .status-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .status-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes pulse {
+            0%, 60%, 100% {
+                opacity: 0.3;
+            }
+            30% {
+                opacity: 1;
+            }
+        }
+
+        /* Input Area */
+        .input-area {
+            border-top: 1px solid #e1e5e9;
+            padding: 20px;
+            background: white;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .input-field {
+            flex: 1;
+            min-height: 44px;
+            max-height: 120px;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 22px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-field:focus {
+            border-color: #007bff;
+        }
+
+        .input-field::placeholder {
+            color: #9ca3af;
+        }
+
+        .send-btn {
+            width: 44px;
+            height: 44px;
+            border: none;
+            background: #007bff;
+            color: white;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            background: #0056b3;
+        }
+
+        .send-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .left-sidebar, .right-sidebar {
+                width: 280px;
+            }
+            
+            .chat-area.left-open {
+                margin-left: 0;
+            }
+            
+            .chat-area.right-open {
+                margin-right: 0;
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+        }
+
+        /* Overlay for mobile */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 40;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="leftSidebarToggle">☰</button>
+            <div class="header-title">Claude Web Runner</div>
+        </div>
+        <div class="header-right">
+            <button class="sidebar-toggle" id="rightSidebarToggle">📁</button>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Overlay for mobile -->
+        <div class="overlay" id="overlay"></div>
+
+        <!-- Left Sidebar -->
+        <div class="left-sidebar" id="leftSidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">Projects & Threads</div>
+                <div class="project-info" id="currentProjectInfo">No project selected</div>
+            </div>
+            <div class="sidebar-content">
+                <ul class="tree-view" id="projectTree">
+                    <!-- Projects and threads will be populated here -->
+                </ul>
+            </div>
+            <div class="sidebar-footer">
+                <button class="sidebar-btn primary" id="newProjectBtn">➕ New Project</button>
+                <button class="sidebar-btn danger" id="deleteProjectBtn" disabled>🗑️ Delete Project</button>
+                <button class="sidebar-btn primary" id="newThreadBtn" disabled>💬 New Thread</button>
+                <button class="sidebar-btn danger" id="deleteThreadBtn" disabled>🗑️ Delete Thread</button>
+            </div>
+        </div>
+
+        <!-- Right Sidebar -->
+        <div class="right-sidebar" id="rightSidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">Project Files</div>
+                <div class="project-info" id="currentProjectFiles">No project selected</div>
+            </div>
+            <div class="sidebar-content">
+                <ul class="tree-view" id="fileTree">
+                    <!-- File tree will be populated here -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="chat-area" id="chatArea">
+            <div class="chat-messages" id="chatMessages">
+                <div class="message assistant">
+                    <div class="message-avatar">C</div>
+                    <div class="message-bubble">
+                        Welcome to Claude Web Runner! Create or select a project and thread to get started.
+                    </div>
+                </div>
+            </div>
+            <div class="status-indicator" id="statusIndicator" style="display: none;">
+                <span class="status-dots">
+                    <span class="status-dot"></span>
+                    <span class="status-dot"></span>
+                    <span class="status-dot"></span>
+                </span>
+                <span id="statusText">Claude is thinking...</span>
+            </div>
+            <div class="input-area">
+                <div class="input-container">
+                    <textarea 
+                        class="input-field" 
+                        id="messageInput" 
+                        placeholder="Type your message here... (Ctrl+Enter to send)"
+                        rows="1"
+                    ></textarea>
+                    <button class="send-btn" id="sendBtn" disabled>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class ClaudeWebApp {
+            constructor() {
+                this.apiBase = 'http://localhost:5000';
+                this.currentProject = null;
+                this.currentThread = null;
+                this.isLoading = false;
+                
+                this.initializeElements();
+                this.bindEvents();
+                this.loadInitialData();
+            }
+
+            initializeElements() {
+                // Sidebar toggles
+                this.leftSidebarToggle = document.getElementById('leftSidebarToggle');
+                this.rightSidebarToggle = document.getElementById('rightSidebarToggle');
+                this.leftSidebar = document.getElementById('leftSidebar');
+                this.rightSidebar = document.getElementById('rightSidebar');
+                this.chatArea = document.getElementById('chatArea');
+                this.overlay = document.getElementById('overlay');
+
+                // Content areas
+                this.chatMessages = document.getElementById('chatMessages');
+                this.messageInput = document.getElementById('messageInput');
+                this.sendBtn = document.getElementById('sendBtn');
+                this.statusIndicator = document.getElementById('statusIndicator');
+                this.statusText = document.getElementById('statusText');
+
+                // Trees and info
+                this.projectTree = document.getElementById('projectTree');
+                this.fileTree = document.getElementById('fileTree');
+                this.currentProjectInfo = document.getElementById('currentProjectInfo');
+                this.currentProjectFiles = document.getElementById('currentProjectFiles');
+
+                // Buttons
+                this.newProjectBtn = document.getElementById('newProjectBtn');
+                this.deleteProjectBtn = document.getElementById('deleteProjectBtn');
+                this.newThreadBtn = document.getElementById('newThreadBtn');
+                this.deleteThreadBtn = document.getElementById('deleteThreadBtn');
+            }
+
+            bindEvents() {
+                // Sidebar toggles
+                this.leftSidebarToggle.addEventListener('click', () => this.toggleLeftSidebar());
+                this.rightSidebarToggle.addEventListener('click', () => this.toggleRightSidebar());
+                this.overlay.addEventListener('click', () => this.closeSidebars());
+
+                // Input events
+                this.messageInput.addEventListener('input', () => this.handleInputChange());
+                this.messageInput.addEventListener('keydown', (e) => this.handleKeyDown(e));
+                this.sendBtn.addEventListener('click', () => this.sendMessage());
+
+                // Button events
+                this.newProjectBtn.addEventListener('click', () => this.createProject());
+                this.deleteProjectBtn.addEventListener('click', () => this.deleteProject());
+                this.newThreadBtn.addEventListener('click', () => this.createThread());
+                this.deleteThreadBtn.addEventListener('click', () => this.deleteThread());
+
+                // Auto-resize textarea
+                this.messageInput.addEventListener('input', () => this.autoResizeTextarea());
+            }
+
+            async loadInitialData() {
+                try {
+                    await this.loadProjects();
+                    await this.loadLastSession();
+                } catch (error) {
+                    console.error('Failed to load initial data:', error);
+                    this.addMessage('assistant', 'Failed to connect to the backend API. Please make sure the server is running.');
+                }
+            }
+
+            async loadProjects() {
+                try {
+                    const response = await fetch(`${this.apiBase}/projects`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.renderProjectTree(data.projects);
+                    }
+                } catch (error) {
+                    console.error('Failed to load projects:', error);
+                }
+            }
+
+            async loadLastSession() {
+                // Try to load the last used project and thread from localStorage
+                const lastProject = localStorage.getItem('lastProject');
+                const lastThread = localStorage.getItem('lastThread');
+                
+                if (lastProject) {
+                    await this.selectProject(lastProject);
+                    if (lastThread) {
+                        await this.selectThread(lastThread);
+                    }
+                }
+            }
+
+            renderProjectTree(projects) {
+                this.projectTree.innerHTML = '';
+                
+                projects.forEach(project => {
+                    const projectItem = this.createTreeItem(
+                        `📁 ${project.name}`,
+                        'project',
+                        project.sanitized_name,
+                        project.thread_count > 0
+                    );
+                    
+                    if (project.thread_count > 0) {
+                        const threadsList = document.createElement('ul');
+                        threadsList.className = 'tree-children';
+                        threadsList.style.display = 'none';
+                        
+                        // We'll load threads when project is expanded
+                        projectItem.appendChild(threadsList);
+                    }
+                    
+                    this.projectTree.appendChild(projectItem);
+                });
+            }
+
+            createTreeItem(label, type, id, hasChildren = false) {
+                const li = document.createElement('li');
+                li.className = 'tree-item';
+                
+                const content = document.createElement('div');
+                content.className = 'tree-item-content';
+                content.dataset.type = type;
+                content.dataset.id = id;
+                
+                if (hasChildren) {
+                    const icon = document.createElement('span');
+                    icon.className = 'tree-icon';
+                    icon.textContent = '▶';
+                    content.appendChild(icon);
+                    
+                    content.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.toggleTreeItem(li, type, id);
+                    });
+                } else {
+                    content.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.selectTreeItem(type, id);
+                    });
+                }
+                
+                const labelSpan = document.createElement('span');
+                labelSpan.className = 'tree-label';
+                labelSpan.textContent = label;
+                content.appendChild(labelSpan);
+                
+                li.appendChild(content);
+                return li;
+            }
+
+            async toggleTreeItem(li, type, id) {
+                const icon = li.querySelector('.tree-icon');
+                const children = li.querySelector('.tree-children');
+                
+                if (type === 'project') {
+                    if (children.style.display === 'none') {
+                        // Load and show threads
+                        await this.loadProjectThreads(id, children);
+                        children.style.display = 'block';
+                        icon.textContent = '▼';
+                    } else {
+                        // Hide threads
+                        children.style.display = 'none';
+                        icon.textContent = '▶';
+                    }
+                }
+            }
+
+            async loadProjectThreads(projectName, container) {
+                try {
+                    const response = await fetch(`${this.apiBase}/project/${projectName}/threads`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        container.innerHTML = '';
+                        data.threads.forEach(thread => {
+                            const threadItem = this.createTreeItem(
+                                `💬 ${thread.name} (${thread.message_count})`,
+                                'thread',
+                                `${projectName}:${thread.id}`
+                            );
+                            container.appendChild(threadItem);
+                        });
+                    }
+                } catch (error) {
+                    console.error('Failed to load threads:', error);
+                }
+            }
+
+            async selectTreeItem(type, id) {
+                // Remove previous selections
+                document.querySelectorAll('.tree-item-content.selected').forEach(el => {
+                    el.classList.remove('selected');
+                });
+                
+                // Add selection to current item
+                event.target.closest('.tree-item-content').classList.add('selected');
+                
+                if (type === 'project') {
+                    await this.selectProject(id);
+                } else if (type === 'thread') {
+                    const [projectName, threadId] = id.split(':');
+                    await this.selectProject(projectName);
+                    await this.selectThread(threadId);
+                }
+            }
+
+            async selectProject(projectName) {
+                this.currentProject = projectName;
+                localStorage.setItem('lastProject', projectName);
+                
+                this.currentProjectInfo.textContent = `Project: ${projectName}`;
+                this.currentProjectFiles.textContent = `Files in: ${projectName}`;
+                
+                // Enable/disable buttons
+                this.deleteProjectBtn.disabled = false;
+                this.newThreadBtn.disabled = false;
+                
+                // Load project files
+                await this.loadProjectFiles(projectName);
+                
+                // Clear chat if no thread selected
+                if (!this.currentThread) {
+                    this.clearChat();
+                    this.addMessage('assistant', `Project "${projectName}" selected. Create or select a thread to start chatting.`);
+                }
+            }
+
+            async selectThread(threadId) {
+                this.currentThread = threadId;
+                localStorage.setItem('lastThread', threadId);
+                
+                // Enable/disable buttons
+                this.deleteThreadBtn.disabled = false;
+                this.sendBtn.disabled = false;
+                this.messageInput.disabled = false;
+                
+                // Load thread messages (if any)
+                this.clearChat();
+                this.addMessage('assistant', `Thread "${threadId}" selected. You can now start chatting!`);
+            }
+
+            async loadProjectFiles(projectName) {
+                try {
+                    const response = await fetch(`${this.apiBase}/project/${projectName}/files`);
+                    const data = await response.json();
+                    
+                    if (data.success && data.file_tree) {
+                        this.renderFileTree(data.file_tree);
+                    } else {
+                        this.fileTree.innerHTML = '<li class="tree-item"><div class="tree-item-content">No files found</div></li>';
+                    }
+                } catch (error) {
+                    console.error('Failed to load project files:', error);
+                    this.fileTree.innerHTML = '<li class="tree-item"><div class="tree-item-content">Error loading files</div></li>';
+                }
+            }
+
+            renderFileTree(node, container = this.fileTree) {
+                if (container === this.fileTree) {
+                    container.innerHTML = '';
+                }
+                
+                const icon = node.type === 'directory' ? '📁' : '📄';
+                const item = this.createTreeItem(`${icon} ${node.name}`, 'file', node.name, node.children && node.children.length > 0);
+                
+                if (node.children && node.children.length > 0) {
+                    const childContainer = document.createElement('ul');
+                    childContainer.className = 'tree-children';
+                    node.children.forEach(child => {
+                        this.renderFileTree(child, childContainer);
+                    });
+                    item.appendChild(childContainer);
+                }
+                
+                container.appendChild(item);
+            }
+
+            toggleLeftSidebar() {
+                this.leftSidebar.classList.toggle('open');
+                this.chatArea.classList.toggle('left-open');
+                
+                if (window.innerWidth <= 768) {
+                    this.overlay.classList.toggle('show');
+                }
+            }
+
+            toggleRightSidebar() {
+                this.rightSidebar.classList.toggle('open');
+                this.chatArea.classList.toggle('right-open');
+                
+                if (window.innerWidth <= 768) {
+                    this.overlay.classList.toggle('show');
+                }
+            }
+
+            closeSidebars() {
+                this.leftSidebar.classList.remove('open');
+                this.rightSidebar.classList.remove('open');
+                this.chatArea.classList.remove('left-open', 'right-open');
+                this.overlay.classList.remove('show');
+            }
+
+            handleInputChange() {
+                const hasText = this.messageInput.value.trim().length > 0;
+                this.sendBtn.disabled = !hasText || this.isLoading || !this.currentThread;
+            }
+
+            handleKeyDown(e) {
+                if (e.key === 'Enter') {
+                    if (e.ctrlKey || e.metaKey) {
+                        e.preventDefault();
+                        if (!this.sendBtn.disabled) {
+                            this.sendMessage();
+                        }
+                    }
+                }
+            }
+
+            autoResizeTextarea() {
+                this.messageInput.style.height = 'auto';
+                this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, 120) + 'px';
+            }
+
+            async sendMessage() {
+                if (!this.currentProject || !this.currentThread || this.isLoading) {
+                    return;
+                }
+
+                const message = this.messageInput.value.trim();
+                if (!message) return;
+
+                // Add user message to chat
+                this.addMessage('user', message);
+                this.messageInput.value = '';
+                this.autoResizeTextarea();
+                this.handleInputChange();
+
+                // Show loading status
+                this.showStatus('Claude is thinking...');
+                this.isLoading = true;
+
+                try {
+                    // Send message to API
+                    const response = await fetch(`${this.apiBase}/project/${this.currentProject}/thread/${this.currentThread}/message`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ message })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Poll for response
+                        await this.pollForResponse(data.job_id);
+                    } else {
+                        this.hideStatus();
+                        this.addMessage('assistant', `Error: ${data.error || 'Failed to send message'}`);
+                    }
+                } catch (error) {
+                    this.hideStatus();
+                    this.addMessage('assistant', `Error: ${error.message}`);
+                } finally {
+                    this.isLoading = false;
+                    this.handleInputChange();
+                }
+            }
+
+            async pollForResponse(jobId) {
+                const maxAttempts = 150; // 5 minutes
+                let attempts = 0;
+
+                const poll = async () => {
+                    try {
+                        const response = await fetch(`${this.apiBase}/status/${jobId}`);
+                        const data = await response.json();
+
+                        if (data.success) {
+                            if (data.status === 'done') {
+                                this.hideStatus();
+                                this.addMessage('assistant', data.response || 'No response received');
+                                return;
+                            } else if (data.status === 'failed') {
+                                this.hideStatus();
+                                this.addMessage('assistant', `Error: ${data.error || 'Request failed'}`);
+                                return;
+                            } else {
+                                // Update status
+                                this.updateStatus(`Status: ${data.status}...`);
+                            }
+                        }
+
+                        attempts++;
+                        if (attempts < maxAttempts) {
+                            setTimeout(poll, 2000);
+                        } else {
+                            this.hideStatus();
+                            this.addMessage('assistant', 'Request timed out. Please try again.');
+                        }
+                    } catch (error) {
+                        this.hideStatus();
+                        this.addMessage('assistant', `Error: ${error.message}`);
+                    }
+                };
+
+                poll();
+            }
+
+            addMessage(sender, content) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}`;
+
+                const avatar = document.createElement('div');
+                avatar.className = 'message-avatar';
+                avatar.textContent = sender === 'user' ? 'U' : 'C';
+
+                const bubble = document.createElement('div');
+                bubble.className = 'message-bubble';
+                bubble.textContent = content;
+
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(bubble);
+
+                this.chatMessages.appendChild(messageDiv);
+                this.scrollToBottom();
+            }
+
+            clearChat() {
+                this.chatMessages.innerHTML = '';
+            }
+
+            showStatus(text) {
+                this.statusText.textContent = text;
+                this.statusIndicator.style.display = 'flex';
+                this.scrollToBottom();
+            }
+
+            updateStatus(text) {
+                this.statusText.textContent = text;
+            }
+
+            hideStatus() {
+                this.statusIndicator.style.display = 'none';
+            }
+
+            scrollToBottom() {
+                setTimeout(() => {
+                    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+                }, 100);
+            }
+
+            async createProject() {
+                const name = prompt('Enter project name:');
+                if (!name) return;
+
+                try {
+                    const response = await fetch(`${this.apiBase}/project/new`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ name })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        await this.loadProjects();
+                        await this.selectProject(data.project_name);
+                    } else {
+                        alert(`Failed to create project: ${data.error}`);
+                    }
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                }
+            }
+
+            async deleteProject() {
+                if (!this.currentProject) return;
+                
+                if (!confirm(`Delete project "${this.currentProject}"? This cannot be undone.`)) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${this.apiBase}/project/${this.currentProject}`, {
+                        method: 'DELETE'
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        this.currentProject = null;
+                        this.currentThread = null;
+                        localStorage.removeItem('lastProject');
+                        localStorage.removeItem('lastThread');
+                        
+                        await this.loadProjects();
+                        this.clearChat();
+                        this.addMessage('assistant', 'Project deleted. Create or select another project to continue.');
+                        
+                        // Disable buttons
+                        this.deleteProjectBtn.disabled = true;
+                        this.newThreadBtn.disabled = true;
+                        this.deleteThreadBtn.disabled = true;
+                        this.sendBtn.disabled = true;
+                    } else {
+                        alert(`Failed to delete project: ${data.error}`);
+                    }
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                }
+            }
+
+            async createThread() {
+                if (!this.currentProject) return;
+
+                const name = prompt('Enter thread name (optional):');
+                
+                try {
+                    const response = await fetch(`${this.apiBase}/project/${this.currentProject}/thread/new`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ name: name || undefined })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        await this.loadProjects();
+                        await this.selectThread(data.thread_id);
+                    } else {
+                        alert(`Failed to create thread: ${data.error}`);
+                    }
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                }
+            }
+
+            async deleteThread() {
+                if (!this.currentProject || !this.currentThread) return;
+                
+                if (!confirm(`Delete thread "${this.currentThread}"? This cannot be undone.`)) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${this.apiBase}/project/${this.currentProject}/thread/${this.currentThread}`, {
+                        method: 'DELETE'
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        this.currentThread = null;
+                        localStorage.removeItem('lastThread');
+                        
+                        await this.loadProjects();
+                        this.clearChat();
+                        this.addMessage('assistant', 'Thread deleted. Create or select another thread to continue.');
+                        
+                        // Disable thread-specific buttons
+                        this.deleteThreadBtn.disabled = true;
+                        this.sendBtn.disabled = true;
+                    } else {
+                        alert(`Failed to delete thread: ${data.error}`);
+                    }
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                }
+            }
+        }
+
+        // Initialize the app when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new ClaudeWebApp();
+        });
+    </script>
+</body>
+</html>
