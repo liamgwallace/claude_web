@@ -16,6 +16,104 @@ from threading import Thread
 import queue
 import time
 
+def get_language_from_extension(extension):
+    """Map file extensions to Prism.js language identifiers."""
+    lang_map = {
+        # Web languages
+        'js': 'javascript',
+        'jsx': 'jsx',
+        'ts': 'typescript',
+        'tsx': 'tsx',
+        'html': 'html',
+        'htm': 'html',
+        'css': 'css',
+        'scss': 'scss',
+        'sass': 'sass',
+        'less': 'less',
+        
+        # Python
+        'py': 'python',
+        'pyx': 'python',
+        'pyw': 'python',
+        
+        # Data formats
+        'json': 'json',
+        'xml': 'xml',
+        'yaml': 'yaml',
+        'yml': 'yaml',
+        'toml': 'toml',
+        'ini': 'ini',
+        'csv': 'csv',
+        
+        # Markup
+        'md': 'markdown',
+        'markdown': 'markdown',
+        'rst': 'rest',
+        'tex': 'latex',
+        
+        # Shell scripts
+        'sh': 'bash',
+        'bash': 'bash',
+        'zsh': 'bash',
+        'fish': 'bash',
+        'ps1': 'powershell',
+        
+        # Databases
+        'sql': 'sql',
+        'sqlite': 'sql',
+        'mysql': 'sql',
+        'pgsql': 'sql',
+        
+        # Config files
+        'conf': 'apache',
+        'htaccess': 'apache',
+        'nginx': 'nginx',
+        'dockerfile': 'docker',
+        
+        # Programming languages
+        'php': 'php',
+        'rb': 'ruby',
+        'go': 'go',
+        'rs': 'rust',
+        'cpp': 'cpp',
+        'cxx': 'cpp',
+        'cc': 'cpp',
+        'c': 'c',
+        'h': 'c',
+        'hpp': 'cpp',
+        'java': 'java',
+        'cs': 'csharp',
+        'swift': 'swift',
+        'kt': 'kotlin',
+        'scala': 'scala',
+        'dart': 'dart',
+        'r': 'r',
+        'lua': 'lua',
+        'perl': 'perl',
+        'pl': 'perl',
+        
+        # Functional languages
+        'hs': 'haskell',
+        'elm': 'elm',
+        'clj': 'clojure',
+        'ml': 'ocaml',
+        'fs': 'fsharp',
+        
+        # Other
+        'vim': 'vim',
+        'diff': 'diff',
+        'patch': 'diff',
+        'log': 'log',
+        'makefile': 'makefile',
+        'cmake': 'cmake',
+        'gradle': 'gradle',
+        'properties': 'properties',
+        'gitignore': 'git',
+        'gitconfig': 'git',
+    }
+    
+    return lang_map.get(extension, 'text')
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -428,19 +526,32 @@ def serve_file_viewer(project_name, file_path):
         if is_binary:
             file_content = f"<p style='color: #666;'>Binary file ({len(content)} bytes) - cannot display as text</p>"
         else:
-            # Escape HTML and preserve formatting
+            # Get language for syntax highlighting
+            file_extension = file_path.split('.')[-1].lower() if '.' in file_path else ''
+            language = get_language_from_extension(file_extension)
+            
+            # Escape HTML and format for syntax highlighting
             import html
-            file_content = f"<pre style='white-space: pre-wrap; word-wrap: break-word;'>{html.escape(content)}</pre>"
+            escaped_content = html.escape(content)
+            
+            if language and language != 'text':
+                # Use syntax highlighting
+                file_content = f'<pre class="line-numbers"><code class="language-{language}">{escaped_content}</code></pre>'
+            else:
+                # Plain text
+                file_content = f'<pre style="white-space: pre-wrap; word-wrap: break-word;">{escaped_content}</pre>'
         
-        # Return lightweight HTML
+        # Return lightweight HTML with Prism.js syntax highlighting
         return f"""
 <!DOCTYPE html>
 <html>
 <head>
     <title>{file_path.split('/')[-1]} - {project_name}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet" />
     <style>
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             margin: 0;
             padding: 20px;
             background: #f8f9fa;
@@ -465,16 +576,34 @@ def serve_file_viewer(project_name, file_path):
         }}
         .content {{
             background: white;
-            padding: 20px;
             border-radius: 6px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             max-height: calc(100vh - 120px);
             overflow: auto;
         }}
-        pre {{
+        /* Custom Prism.js styling */
+        pre[class*="language-"] {{
             margin: 0;
+            padding: 0;
             font-size: 14px;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            line-height: 1.5;
+        }}
+        code[class*="language-"] {{
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+        }}
+        .line-numbers .line-numbers-rows {{
+            border-right: 1px solid #e1e5e9;
+            padding-right: 8px;
+            margin-right: 8px;
+        }}
+        /* Plain text styling */
+        pre:not([class*="language-"]) {{
+            margin: 0;
+            padding: 20px;
+            font-size: 14px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }}
     </style>
 </head>
@@ -487,6 +616,20 @@ def serve_file_viewer(project_name, file_path):
     <div class="content">
         {file_content}
     </div>
+    
+    <!-- Prism.js JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+    <script>
+        // Configure Prism.js autoloader
+        Prism.plugins.autoloader.languages_path = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/';
+        
+        // Initialize syntax highlighting
+        document.addEventListener('DOMContentLoaded', function() {{
+            Prism.highlightAll();
+        }});
+    </script>
 </body>
 </html>
 """
