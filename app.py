@@ -369,6 +369,143 @@ def delete_project(project_name):
         logger.error(f"Error deleting project {project_name}: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route('/<project_name>/file/<path:file_path>')
+def serve_file_viewer(project_name, file_path):
+    """Serve the file viewer for a specific project file."""
+    try:
+        # Handle empty file path 
+        if not file_path or file_path == '':
+            return """
+<!DOCTYPE html>
+<html>
+<head><title>No File Specified</title></head>
+<body style="font-family: monospace; padding: 20px;">
+    <h2>No File Specified</h2>
+    <p>Please specify a file path</p>
+</body>
+</html>
+""", 400
+        
+        # Get file content using the existing wrapper
+        content = claude_wrapper.get_file_content(project_name, file_path)
+        
+        if content is None:
+            return f"""
+<!DOCTYPE html>
+<html>
+<head><title>File Not Found</title></head>
+<body style="font-family: monospace; padding: 20px;">
+    <h2>File Not Found</h2>
+    <p>Project: {project_name}</p>
+    <p>File: {file_path}</p>
+</body>
+</html>
+""", 404
+        
+        # Improved binary detection - check for null bytes and high ratio of non-printable chars
+        try:
+            # Try to ensure content is string
+            if isinstance(content, bytes):
+                content = content.decode('utf-8', errors='ignore')
+            
+            # Check for null bytes (definite binary indicator)
+            has_null_bytes = '\0' in content
+            
+            # Check ratio of non-printable characters in first 1000 chars
+            sample = content[:1000]
+            if len(sample) > 0:
+                printable_chars = sum(1 for c in sample if c.isprintable() or c in '\n\r\t')
+                non_printable_ratio = (len(sample) - printable_chars) / len(sample)
+                has_high_non_printable = non_printable_ratio > 0.3  # More than 30% non-printable
+            else:
+                has_high_non_printable = False
+            
+            is_binary = has_null_bytes or has_high_non_printable
+        except Exception:
+            # If any error in detection, assume it's binary to be safe
+            is_binary = True
+        
+        if is_binary:
+            file_content = f"<p style='color: #666;'>Binary file ({len(content)} bytes) - cannot display as text</p>"
+        else:
+            # Escape HTML and preserve formatting
+            import html
+            file_content = f"<pre style='white-space: pre-wrap; word-wrap: break-word;'>{html.escape(content)}</pre>"
+        
+        # Return lightweight HTML
+        return f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{file_path.split('/')[-1]} - {project_name}</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+            margin: 0;
+            padding: 20px;
+            background: #f8f9fa;
+            line-height: 1.6;
+        }}
+        .header {{
+            background: white;
+            padding: 15px 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }}
+        .file-name {{
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }}
+        .file-info {{
+            font-size: 14px;
+            color: #6c757d;
+        }}
+        .content {{
+            background: white;
+            padding: 20px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            max-height: calc(100vh - 120px);
+            overflow: auto;
+        }}
+        pre {{
+            margin: 0;
+            font-size: 14px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="file-name">📄 {file_path.split('/')[-1]}</div>
+        <div class="file-info">Project: {project_name} • Path: {file_path}</div>
+    </div>
+    
+    <div class="content">
+        {file_content}
+    </div>
+</body>
+</html>
+"""
+        
+    except Exception as e:
+        logger.error(f"Error serving file viewer for {project_name}/{file_path}: {e}")
+        return f"""
+<!DOCTYPE html>
+<html>
+<head><title>Error</title></head>
+<body style="font-family: monospace; padding: 20px;">
+    <h2>Error Loading File</h2>
+    <p>Project: {project_name}</p>
+    <p>File: {file_path}</p>
+    <p>Error: {str(e)}</p>
+</body>
+</html>
+""", 500
+
 @app.route('/')
 def serve_web_app():
     """Serve the main web application."""
