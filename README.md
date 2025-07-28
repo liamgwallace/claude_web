@@ -30,8 +30,8 @@ A modern web interface for interacting with Claude Code through projects and thr
    ```
 
 3. **Open Your Browser**
-   - The app will automatically open at http://localhost:5000
-   - Or manually navigate to http://localhost:5000
+   - The app will automatically open at http://localhost:8000
+   - Or manually navigate to http://localhost:8000
 
 ## Usage
 
@@ -67,36 +67,62 @@ A modern web interface for interacting with Claude Code through projects and thr
 
 ## Architecture
 
+This is a **single-service web application** that combines both backend API and frontend in one Flask server.
+
+### Services & Ports
+- **Main Application**: `start.py` → Runs Flask on **port 8000**
+  - **Backend API**: Flask REST API endpoints (`app.py`)
+  - **Frontend**: Static HTML/CSS/JS served from Flask (`web_app.html`)
+  - **URL**: http://localhost:8000 (both API and web interface)
+
+### Project Structure
 ```
 claude_web/
-├── app.py              # Flask API backend
-├── claude_wrapper.py   # Claude CLI integration
-├── web_app.html       # Complete web interface
-├── start.py           # Simple startup script
+├── start.py            # Main startup script (launches Flask on port 8000)
+├── app.py              # Flask API backend + static file serving
+├── claude_wrapper.py   # Claude CLI integration with session management
+├── web_app.html       # Single-page web application (HTML/CSS/JS)
+├── test_api.py        # API testing client
 ├── requirements.txt   # Python dependencies
 └── data/
-    └── projects/      # Project directories
-        ├── project-1/ # Individual project folder
-        │   ├── <generated files>
-        │   └── .threads/
+    └── projects/      # Project working directories
+        ├── project-1/ # Individual project folder (Claude workspace)
+        │   ├── <generated files by Claude>
+        │   └── .threads/    # Thread metadata storage
+        │       ├── thread-1.json
+        │       └── threads.json
         └── project-2/
 ```
+
+### Key Components
+1. **Flask Backend** (`app.py`): REST API + serves static HTML
+2. **Claude Integration** (`claude_wrapper.py`): Session management with CLI
+3. **Web Frontend** (`web_app.html`): Complete SPA with chat UI
+4. **Startup Script** (`start.py`): Dependency checks + launches Flask
 
 ## Troubleshooting
 
 **"Failed to fetch" errors:**
-- Make sure the Flask server is running on port 5000
+- Make sure the Flask server is running on port 8000
 - Install flask-cors: `pip install flask-cors`
 
 **Claude CLI not found:**
 - Ensure Claude CLI is installed and in your PATH
 - On Windows, check common installation paths
 
-## Migration from Chainlit
+## Technical Details
 
-This replaces the previous Chainlit-based interface with a custom web application that:
-- Eliminates Pydantic validation errors
-- Provides better control over UI/UX  
-- Reduces complexity and dependencies
-- Offers improved mobile responsiveness
-- Maintains full compatibility with existing Flask backend
+### Session Management
+- Each project thread corresponds to a unique Claude CLI session
+- Session IDs are stored in thread metadata for conversation continuity
+- Claude CLI handles conversation history automatically via `--resume` flag
+
+### Async Processing
+- Flask uses background job queue for Claude CLI calls
+- Jobs tracked with status: `queued` → `running` → `done`/`failed`
+- Frontend polls `/status/<job_id>` for real-time updates
+
+### File Organization
+- **Projects**: Physical directories where Claude CLI executes
+- **Threads**: JSON metadata files linking to Claude sessions
+- **Generated Files**: Created directly by Claude in project directories

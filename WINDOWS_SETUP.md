@@ -68,8 +68,7 @@ chainlit run chainlit_app.py
 ```
 
 ### 4. **Access Application**
-- Backend API: http://localhost:5000
-- Web Interface: http://localhost:8000
+- Application (API + Web Interface): http://localhost:8000
 
 ## 🆘 **Common Windows Issues**
 
@@ -91,23 +90,22 @@ claude auth
 
 ### **Issue: Port already in use**
 ```cmd
-# Kill processes on ports 5000 or 8000
-netstat -ano | findstr :5000
+# Kill processes on port 8000
+netstat -ano | findstr :8000
 taskkill /PID <PID_NUMBER> /F
 ```
 
 ## 🎉 **Verification**
 
 Once running, you should see:
-- ✅ Backend: "Starting Claude Web API on port 5000"  
-- ✅ Frontend: Chainlit server at http://localhost:8000
-- ✅ Browser: Claude Web Runner interface loads
+- ✅ Flask: "Starting Claude Web API on port 8000"  
+- ✅ Browser: Claude Web Runner interface loads at http://localhost:8000
 
 ## 💡 **Tips**
 
-- **Always start backend first**, then frontend
-- **Keep both terminals open** while using the app
-- **Use `run_simple.py`** to avoid startup script issues
+- **Use `start.py`** for the easiest startup experience
+- **Single server** - no need to manage multiple terminals
+- **Port 8000** is the only port you need to remember
 - **Check firewall settings** if having connection issues
 
 ## 🐛 **Still Having Issues?**

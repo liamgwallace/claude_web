@@ -103,17 +103,11 @@ python start_app.py
 ```
 
 ### Manual Start
-1. **Start Flask API Backend** (Terminal 1):
+1. **Start Flask Application**:
    ```bash
-   python app.py
+   python app.py 8000
    ```
-   API will be available at http://localhost:5000
-
-2. **Start Chainlit Frontend** (Terminal 2):
-   ```bash
-   chainlit run chainlit_app.py
-   ```
-   Web interface will be available at http://localhost:8000
+   Both API and web interface will be available at http://localhost:8000
 
 ### Testing Backend Only
 Use the test client for API testing:

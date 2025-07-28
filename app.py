@@ -7,6 +7,7 @@ Threads are chat conversations stored as metadata within projects.
 from flask import Flask, request, jsonify
 from flask.helpers import send_from_directory
 from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 import logging
 import os
 from claude_wrapper import ClaudeWrapper
@@ -22,8 +23,17 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
+# Configure proxy support for VS Code port forwarding
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
 # Initialize Claude wrapper
 claude_wrapper = ClaudeWrapper()
+
+# Add request logging middleware
+@app.before_request
+def log_request():
+    logger.info(f"Request: {request.method} {request.path} from {request.remote_addr}")
+    logger.info(f"Headers: {dict(request.headers)}")
 
 # Simple job queue for async processing
 job_queue = queue.Queue()
@@ -377,7 +387,8 @@ if __name__ == '__main__':
     os.makedirs('data/projects', exist_ok=True)
     
     # Run Flask app
-    port = int(os.environ.get('PORT', 5000))
+    import sys
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get('PORT', 8000))
     debug = os.environ.get('DEBUG', 'False').lower() == 'true'
     
     logger.info(f"Starting Claude Web API on port {port}")

@@ -127,7 +127,8 @@ class ClaudeWrapper:
             "name": thread_name or f"Thread {thread_id}",
             "created": datetime.utcnow().isoformat(),
             "session_id": None,  # Claude CLI session ID will be set on first message
-            "message_count": 0
+            "message_count": 0,
+            "messages": []  # Store conversation history
         }
         
         # Add to project threads
@@ -211,21 +212,29 @@ class ClaudeWrapper:
             if not claude_cmd:
                 raise Exception("Claude CLI not found. Please ensure Claude CLI is installed and in PATH.")
             
+            # Build base command with permissions and environment
+            base_cmd = [claude_cmd, "--dangerously-skip-permissions"]
+            
             if session_id:
                 # Resume existing session
-                cmd = [claude_cmd, "--resume", session_id, "-p", message, "--output-format", "json"]
+                cmd = base_cmd + ["--resume", session_id, "-p", message, "--output-format", "json"]
                 logger.info(f"Resuming session {session_id} for thread {thread_id}")
             else:
                 # Start new session
-                cmd = [claude_cmd, "-p", message, "--output-format", "json"]
+                cmd = base_cmd + ["-p", message, "--output-format", "json"]
                 logger.info(f"Starting new session for thread {thread_id}")
+            
+            # Get full environment from current process
+            env = os.environ.copy()
             
             result = subprocess.run(
                 cmd,
                 cwd=str(project_dir),  # Run in project directory
+                env=env,  # Pass full environment
                 capture_output=True,
                 text=True,
-                timeout=300  # 5 minute timeout
+                timeout=300,  # 5 minute timeout
+                shell=False  # Use direct exec for better control
             )
             
             if result.returncode == 0:
@@ -245,9 +254,30 @@ class ClaudeWrapper:
                 # Update thread metadata with session ID and increment message count
                 if new_session_id:
                     metadata["session_id"] = new_session_id
+                
+                # Ensure messages array exists (for backwards compatibility)
+                if "messages" not in metadata:
+                    metadata["messages"] = []
+                
+                # Add user message and Claude response to conversation history
+                message_timestamp = datetime.utcnow().isoformat()
+                
+                # Add user message
+                metadata["messages"].append({
+                    "role": "user", 
+                    "content": message,
+                    "timestamp": message_timestamp
+                })
+                
+                # Add Claude response
+                metadata["messages"].append({
+                    "role": "assistant",
+                    "content": response_text,
+                    "timestamp": message_timestamp
+                })
                     
                 metadata["message_count"] = metadata.get("message_count", 0) + 1
-                metadata["last_activity"] = datetime.utcnow().isoformat()
+                metadata["last_activity"] = message_timestamp
                 
                 # Save updated thread metadata
                 with open(thread_file, 'w') as f:
@@ -303,8 +333,8 @@ class ClaudeWrapper:
     
     def get_messages(self, project_name: str, thread_id: str) -> Optional[List[Dict]]:
         """
-        Get thread information - message history is now managed by Claude sessions.
-        Returns thread info or None if not found.
+        Get conversation message history for a thread.
+        Returns list of messages or None if not found.
         """
         project_dir = self.base_projects_dir / project_name
         if not project_dir.exists():
@@ -319,16 +349,19 @@ class ClaudeWrapper:
             with open(thread_file, 'r') as f:
                 metadata = json.load(f)
                 
-                # Return thread info instead of message history
-                # Message history is now managed by Claude sessions
-                return [{
-                    "info": "Message history is managed by Claude sessions",
-                    "thread_id": thread_id,
-                    "session_id": metadata.get("session_id", "No session started yet"),
-                    "message_count": metadata.get("message_count", 0),
-                    "last_activity": metadata.get("last_activity", "Never"),
-                    "note": "Start a conversation to begin the Claude session"
-                }]
+                # Return stored conversation messages
+                messages = metadata.get("messages", [])
+                
+                # If no messages exist but there's a session, show info message
+                if not messages and metadata.get("session_id"):
+                    return [{
+                        "role": "system",
+                        "content": f"Thread has {metadata.get('message_count', 0)} messages but history not stored in this format. Future messages will be saved.",
+                        "timestamp": metadata.get("created", "")
+                    }]
+                
+                return messages
+                
         except json.JSONDecodeError:
             logger.error(f"Invalid thread file for {project_name}/{thread_id}")
             return None

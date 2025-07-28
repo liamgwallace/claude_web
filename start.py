@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 """
 Simple startup script for Claude Web Runner.
@@ -57,8 +58,8 @@ def main():
     data_dir.mkdir(parents=True, exist_ok=True)
     
     print("\n🌐 Starting Flask server...")
-    print("📊 Backend API: http://localhost:5000")
-    print("🖥️  Web Interface: http://localhost:5000")
+    print("📊 Backend API: http://localhost:8000")
+    print("🖥️  Web Interface: http://localhost:8000")
     print("\n🛑 Press Ctrl+C to stop the server")
     print("=" * 50)
     
@@ -66,7 +67,7 @@ def main():
     def open_browser():
         time.sleep(2)
         try:
-            webbrowser.open('http://localhost:5000')
+            webbrowser.open('http://localhost:8000')
         except:
             pass
     
@@ -77,7 +78,7 @@ def main():
     
     # Start Flask app
     try:
-        os.system('python app.py')
+        os.system('python app.py 8000')
     except KeyboardInterrupt:
         print("\n👋 Shutting down Claude Web Runner")
         sys.exit(0)

@@ -12,7 +12,7 @@ import sys
 from typing import Dict, List, Optional
 
 class ClaudeAPITester:
-    def __init__(self, base_url: str = "http://localhost:5000"):
+    def __init__(self, base_url: str = "http://localhost:8000"):
         self.base_url = base_url.rstrip('/')
         self.current_project_name = None
         self.current_thread_id = None

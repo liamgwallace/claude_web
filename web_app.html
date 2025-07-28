@@ -135,6 +135,11 @@
             background: #f8f9fa;
         }
 
+        .file-link:hover {
+            background: #e3f2fd !important;
+            color: #1976d2 !important;
+        }
+
         .tree-item-content.selected {
             background: #e3f2fd;
             color: #1976d2;
@@ -363,7 +368,7 @@
 
         .input-field {
             flex: 1;
-            min-height: 44px;
+            min-height: 88px;
             max-height: 120px;
             padding: 12px 16px;
             border: 1px solid #d1d5db;
@@ -786,7 +791,7 @@
                 
                 // Load thread messages (if any)
                 this.clearChat();
-                this.addMessage('assistant', `Thread "${threadId}" selected. You can now start chatting!`);
+                await this.loadThreadMessages(threadId);
             }
 
             async loadProjectFiles(projectName) {
@@ -805,19 +810,20 @@
                 }
             }
 
-            renderFileTree(node, container = this.fileTree) {
+            renderFileTree(node, container = this.fileTree, parentPath = '') {
                 if (container === this.fileTree) {
                     container.innerHTML = '';
                 }
                 
+                const currentPath = parentPath ? `${parentPath}/${node.name}` : node.name;
                 const icon = node.type === 'directory' ? '📁' : '📄';
-                const item = this.createTreeItem(`${icon} ${node.name}`, 'file', node.name, node.children && node.children.length > 0);
+                const item = this.createFileTreeItem(`${icon} ${node.name}`, node.type, currentPath, node.children && node.children.length > 0);
                 
                 if (node.children && node.children.length > 0) {
                     const childContainer = document.createElement('ul');
                     childContainer.className = 'tree-children';
                     node.children.forEach(child => {
-                        this.renderFileTree(child, childContainer);
+                        this.renderFileTree(child, childContainer, currentPath);
                     });
                     item.appendChild(childContainer);
                 }
@@ -958,7 +964,7 @@
                 poll();
             }
 
-            addMessage(sender, content) {
+            addMessage(sender, content, timestamp = null) {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${sender}`;
 
@@ -969,6 +975,16 @@
                 const bubble = document.createElement('div');
                 bubble.className = 'message-bubble';
                 bubble.textContent = content;
+
+                // Add timestamp if provided
+                if (timestamp) {
+                    const timeDiv = document.createElement('div');
+                    timeDiv.className = 'message-timestamp';
+                    timeDiv.style.cssText = 'font-size: 0.75em; color: #6c757d; margin-top: 5px; opacity: 0.7;';
+                    const date = new Date(timestamp);
+                    timeDiv.textContent = date.toLocaleString();
+                    bubble.appendChild(timeDiv);
+                }
 
                 messageDiv.appendChild(avatar);
                 messageDiv.appendChild(bubble);
@@ -1117,6 +1133,376 @@
                     }
                 } catch (error) {
                     alert(`Error: ${error.message}`);
+                }
+            }
+
+            createFileTreeItem(label, type, path, hasChildren = false) {
+                const li = document.createElement('li');
+                li.className = 'tree-item';
+                
+                if (type === 'directory') {
+                    // Directory - use div with click handler
+                    const content = document.createElement('div');
+                    content.className = 'tree-item-content';
+                    content.dataset.type = type;
+                    content.dataset.path = path;
+                    
+                    if (hasChildren) {
+                        const icon = document.createElement('span');
+                        icon.className = 'tree-icon';
+                        icon.textContent = '▶';
+                        content.appendChild(icon);
+                        
+                        content.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.toggleFileTreeItem(li);
+                        });
+                    }
+                    
+                    const labelSpan = document.createElement('span');
+                    labelSpan.className = 'tree-label';
+                    labelSpan.textContent = label;
+                    content.appendChild(labelSpan);
+                    
+                    li.appendChild(content);
+                } else {
+                    // File - use clickable link
+                    const link = document.createElement('a');
+                    link.className = 'tree-item-content file-link';
+                    link.href = '#';
+                    link.dataset.type = type;
+                    link.dataset.path = path;
+                    link.style.cssText = 'text-decoration: none; color: inherit; cursor: pointer;';
+                    
+                    const labelSpan = document.createElement('span');
+                    labelSpan.className = 'tree-label';
+                    labelSpan.textContent = label;
+                    link.appendChild(labelSpan);
+                    
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.openFileViewer(path);
+                    });
+                    
+                    li.appendChild(link);
+                }
+                
+                return li;
+            }
+
+            toggleFileTreeItem(li) {
+                const icon = li.querySelector('.tree-icon');
+                const children = li.querySelector('.tree-children');
+                
+                if (children) {
+                    if (children.style.display === 'none' || !children.style.display) {
+                        children.style.display = 'block';
+                        icon.textContent = '▼';
+                    } else {
+                        children.style.display = 'none';
+                        icon.textContent = '▶';
+                    }
+                }
+            }
+
+            async openFileViewer(filePath) {
+                if (!this.currentProject) {
+                    alert('No project selected');
+                    return;
+                }
+                
+                try {
+                    console.log(`Opening file: ${filePath} from project: ${this.currentProject}`);
+                    
+                    const encodedProject = encodeURIComponent(this.currentProject);
+                    const encodedPath = encodeURIComponent(filePath);
+                    const apiUrl = `${this.apiBase}/project/${encodedProject}/file?path=${encodedPath}`;
+                    
+                    console.log(`API URL: ${apiUrl}`);
+                    
+                    const response = await fetch(apiUrl);
+                    console.log(`Response status: ${response.status}`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    console.log('API Response:', data);
+                    
+                    if (data.success) {
+                        this.createFileViewerWindow(filePath, data.content);
+                    } else {
+                        alert(`Error loading file: ${data.error}`);
+                    }
+                } catch (error) {
+                    console.error('File viewer error:', error);
+                    alert(`Error loading file: ${error.message}`);
+                }
+            }
+
+            createFileViewerWindow(filePath, content) {
+                const fileName = filePath.split('/').pop();
+                const fileExtension = fileName.split('.').pop().toLowerCase();
+                
+                // Create new window
+                const newWindow = window.open('', `file_${fileName}`, 'width=900,height=700,scrollbars=yes,resizable=yes');
+                
+                if (!newWindow) {
+                    alert('Popup blocked! Please allow popups for this site to view files.');
+                    return;
+                }
+                
+                // Detect if content is binary
+                const isBinary = this.isBinaryContent(content);
+                const language = this.getLanguageFromExtension(fileExtension);
+                
+                // Create HTML content for the new window
+                const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>${fileName} - ${this.currentProject}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet" />
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8f9fa;
+            line-height: 1.6;
+        }
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .file-name {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .file-info {
+            font-size: 14px;
+            color: #6c757d;
+        }
+        .content {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .file-content {
+            max-height: calc(100vh - 200px);
+            overflow: auto;
+        }
+        pre {
+            margin: 0;
+            padding: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .binary-message {
+            padding: 40px;
+            text-align: center;
+            color: #6c757d;
+        }
+        pre[class*="language-"] {
+            margin: 0;
+            padding: 0;
+        }
+        .line-numbers .line-numbers-rows {
+            border-right: 1px solid #e1e5e9;
+        }
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="file-name">📄 ${fileName}</div>
+        <div class="file-info">Project: ${this.currentProject} • Path: ${filePath}</div>
+    </div>
+    
+    <div class="content">
+        <div class="file-content">
+            ${this.generateFileContentHTML(content, isBinary, language, fileExtension)}
+        </div>
+    </div>
+    
+    <div class="footer">
+        Opened from Claude Web Runner • ${new Date().toLocaleString()}
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+    <script>
+        if (typeof Prism !== 'undefined') {
+            Prism.plugins.autoloader.languages_path = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/';
+            Prism.highlightAll();
+        }
+    </script>
+</body>
+</html>`;
+                
+                newWindow.document.write(htmlContent);
+                newWindow.document.close();
+                newWindow.focus();
+            }
+
+            generateFileContentHTML(content, isBinary, language, fileExtension) {
+                if (isBinary) {
+                    // Handle binary files
+                    if (this.isImageFile(fileExtension)) {
+                        return `
+                            <div class="binary-message">
+                                <h3>🖼️ Image File</h3>
+                                <p>This appears to be an image file (${fileExtension.toUpperCase()}).</p>
+                                <p>Binary image files cannot be displayed in this viewer.</p>
+                            </div>`;
+                    } else {
+                        return `
+                            <div class="binary-message">
+                                <h3>📁 Binary File</h3>
+                                <p>This file contains binary data and cannot be displayed as text.</p>
+                                <p>File type: ${fileExtension.toUpperCase() || 'Unknown'}</p>
+                            </div>`;
+                    }
+                } else {
+                    // Handle text files
+                    const escapedContent = this.escapeHtml(content);
+                    if (this.isCodeFile(fileExtension)) {
+                        // Use Prism.js for syntax highlighting
+                        const prismLanguage = this.getPrismLanguage(language);
+                        return `<pre class="line-numbers"><code class="language-${prismLanguage}">${escapedContent}</code></pre>`;
+                    } else {
+                        // Plain text file
+                        return `<pre>${escapedContent}</pre>`;
+                    }
+                }
+            }
+
+            isBinaryContent(content) {
+                // Simple binary detection - look for null bytes or high percentage of non-printable chars
+                if (typeof content !== 'string') return true;
+                return content.includes('\0') || /[\x00-\x08\x0E-\x1F\x7F-\xFF]/.test(content.substring(0, 1000));
+            }
+
+            isImageFile(extension) {
+                const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico'];
+                return imageExtensions.includes(extension);
+            }
+
+            isCodeFile(extension) {
+                const codeExtensions = ['js', 'jsx', 'ts', 'tsx', 'py', 'html', 'htm', 'css', 'scss', 'sass', 'json', 'xml', 'md', 'yml', 'yaml', 'sh', 'bash', 'sql', 'php', 'rb', 'go', 'rs', 'cpp', 'c', 'h', 'java', 'cs', 'swift', 'kt', 'dart', 'vue', 'svelte'];
+                return codeExtensions.includes(extension);
+            }
+
+            getLanguageFromExtension(extension) {
+                const langMap = {
+                    'js': 'javascript',
+                    'jsx': 'javascript',
+                    'ts': 'typescript',
+                    'tsx': 'typescript',
+                    'py': 'python',
+                    'html': 'html',
+                    'htm': 'html',
+                    'css': 'css',
+                    'scss': 'scss',
+                    'sass': 'sass',
+                    'json': 'json',
+                    'xml': 'xml',
+                    'md': 'markdown',
+                    'yml': 'yaml',
+                    'yaml': 'yaml',
+                    'sh': 'bash',
+                    'bash': 'bash',
+                    'sql': 'sql',
+                    'php': 'php',
+                    'rb': 'ruby',
+                    'go': 'go',
+                    'rs': 'rust',
+                    'cpp': 'cpp',
+                    'c': 'c',
+                    'h': 'c',
+                    'java': 'java',
+                    'cs': 'csharp',
+                    'swift': 'swift',
+                    'kt': 'kotlin',
+                    'dart': 'dart',
+                    'vue': 'vue',
+                    'svelte': 'svelte'
+                };
+                return langMap[extension] || 'text';
+            }
+
+            getPrismLanguage(language) {
+                // Map internal language names to Prism language identifiers
+                const prismMap = {
+                    'javascript': 'javascript',
+                    'typescript': 'typescript',
+                    'python': 'python',
+                    'html': 'html',
+                    'css': 'css',
+                    'scss': 'scss',
+                    'sass': 'sass',
+                    'json': 'json',
+                    'xml': 'xml',
+                    'markdown': 'markdown',
+                    'yaml': 'yaml',
+                    'bash': 'bash',
+                    'sql': 'sql',
+                    'php': 'php',
+                    'ruby': 'ruby',
+                    'go': 'go',
+                    'rust': 'rust',
+                    'cpp': 'cpp',
+                    'c': 'c',
+                    'java': 'java',
+                    'csharp': 'csharp',
+                    'swift': 'swift',
+                    'kotlin': 'kotlin',
+                    'dart': 'dart',
+                    'vue': 'vue',
+                    'svelte': 'svelte'
+                };
+                return prismMap[language] || 'text';
+            }
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            async loadThreadMessages(threadId) {
+                try {
+                    const response = await fetch(`${this.apiBase}/project/${this.currentProject}/thread/${threadId}/messages`);
+                    const data = await response.json();
+                    
+                    if (data.success && data.messages && data.messages.length > 0) {
+                        // Load existing messages
+                        data.messages.forEach(message => {
+                            this.addMessage(message.role, message.content, message.timestamp);
+                        });
+                    } else {
+                        // No messages yet, show welcome message
+                        this.addMessage('assistant', `Thread "${threadId}" selected. You can now start chatting!`);
+                    }
+                } catch (error) {
+                    console.error('Failed to load thread messages:', error);
+                    this.addMessage('assistant', `Thread "${threadId}" selected. You can now start chatting!`);
                 }
             }
         }
