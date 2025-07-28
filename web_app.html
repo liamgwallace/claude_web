@@ -78,7 +78,7 @@
             border-right: 1px solid #e1e5e9;
             display: flex;
             flex-direction: column;
-            transform: translateX(-100%);
+            transform: translateX(0);
             transition: transform 0.3s ease;
             position: absolute;
             height: 100%;
@@ -86,8 +86,8 @@
             box-shadow: 2px 0 4px rgba(0,0,0,0.1);
         }
 
-        .left-sidebar.open {
-            transform: translateX(0);
+        .left-sidebar.closed {
+            transform: translateX(-100%);
         }
 
         .sidebar-header {
@@ -230,8 +230,12 @@
             transition: margin 0.3s ease;
         }
 
-        .chat-area.left-open {
+        .chat-area {
             margin-left: 300px;
+        }
+        
+        .chat-area.left-closed {
+            margin-left: 0;
         }
 
         .chat-area.right-open {
@@ -409,7 +413,7 @@
                 width: 280px;
             }
             
-            .chat-area.left-open {
+            .chat-area.left-closed {
                 margin-left: 0;
             }
             
@@ -530,7 +534,15 @@
     <script>
         class ClaudeWebApp {
             constructor() {
-                this.apiBase = 'http://localhost:5000';
+                // Detect if we're behind a proxy and set API base accordingly
+                const currentPath = window.location.pathname;
+                if (currentPath.includes('/proxy/')) {
+                    // Extract the proxy path (e.g., '/proxy/8000')
+                    const proxyMatch = currentPath.match(/\/proxy\/\d+/);
+                    this.apiBase = proxyMatch ? proxyMatch[0] : '';
+                } else {
+                    this.apiBase = ''; // Use relative URLs for normal setup
+                }
                 this.currentProject = null;
                 this.currentThread = null;
                 this.isLoading = false;
@@ -814,8 +826,8 @@
             }
 
             toggleLeftSidebar() {
-                this.leftSidebar.classList.toggle('open');
-                this.chatArea.classList.toggle('left-open');
+                this.leftSidebar.classList.toggle('closed');
+                this.chatArea.classList.toggle('left-closed');
                 
                 if (window.innerWidth <= 768) {
                     this.overlay.classList.toggle('show');
@@ -832,9 +844,10 @@
             }
 
             closeSidebars() {
-                this.leftSidebar.classList.remove('open');
+                this.leftSidebar.classList.add('closed');
                 this.rightSidebar.classList.remove('open');
-                this.chatArea.classList.remove('left-open', 'right-open');
+                this.chatArea.classList.add('left-closed');
+                this.chatArea.classList.remove('right-open');
                 this.overlay.classList.remove('show');
             }
 
