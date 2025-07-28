@@ -6,6 +6,7 @@ Threads are chat conversations stored as metadata within projects.
 
 from flask import Flask, request, jsonify
 from flask.helpers import send_from_directory
+from flask_cors import CORS
 import logging
 import os
 from claude_wrapper import ClaudeWrapper
@@ -19,6 +20,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 # Initialize Claude wrapper
 claude_wrapper = ClaudeWrapper()
@@ -356,6 +358,11 @@ def delete_project(project_name):
     except Exception as e:
         logger.error(f"Error deleting project {project_name}: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/')
+def serve_web_app():
+    """Serve the main web application."""
+    return send_from_directory('.', 'web_app.html')
 
 @app.errorhandler(404)
 def not_found(error):
