@@ -46,6 +46,8 @@
             padding: 8px;
             border-radius: 4px;
             transition: background 0.2s;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .sidebar-toggle:hover {
@@ -179,6 +181,8 @@
             cursor: pointer;
             font-size: 12px;
             transition: all 0.2s;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .sidebar-btn:hover {
@@ -236,12 +240,12 @@
         }
 
         .chat-area {
-            margin-left: 300px;
+            margin-left: 0;
             min-height: 100%;
         }
         
-        .chat-area.left-closed {
-            margin-left: 0;
+        .chat-area.left-open {
+            margin-left: 300px;
         }
 
         .chat-area.right-open {
@@ -405,6 +409,8 @@
             justify-content: center;
             transition: background 0.2s;
             flex-shrink: 0;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .send-btn:hover:not(:disabled) {
@@ -488,6 +494,9 @@
                 padding: 10px 14px;
                 border-radius: 20px;
                 font-size: 16px; /* Prevents zoom on iOS */
+                -webkit-appearance: none;
+                appearance: none;
+                touch-action: manipulation;
             }
             
             .send-btn {
@@ -524,7 +533,7 @@
             opacity: 0;
             visibility: hidden;
             transition: all 0.3s ease;
-            touch-action: none;
+            touch-action: manipulation;
         }
 
         .overlay.show {
@@ -558,7 +567,7 @@
         <div class="overlay" id="overlay"></div>
 
         <!-- Left Sidebar -->
-        <div class="left-sidebar" id="leftSidebar">
+        <div class="left-sidebar closed" id="leftSidebar">
             <div class="sidebar-header">
                 <div class="sidebar-title">Projects & Threads</div>
                 <div class="project-info" id="currentProjectInfo">No project selected</div>
@@ -648,6 +657,7 @@
                 
                 this.initializeElements();
                 this.bindEvents();
+                this.initializeSidebarStates();
                 this.loadInitialData();
                 this.initializeMobileHandling();
             }
@@ -679,6 +689,48 @@
                 this.deleteProjectBtn = document.getElementById('deleteProjectBtn');
                 this.newThreadBtn = document.getElementById('newThreadBtn');
                 this.deleteThreadBtn = document.getElementById('deleteThreadBtn');
+            }
+
+            initializeSidebarStates() {
+                // Set initial sidebar states based on screen size
+                if (window.innerWidth <= 768) {
+                    // Mobile: both sidebars closed by default
+                    this.leftSidebar.classList.add('closed');
+                    this.rightSidebar.classList.remove('open');
+                    this.chatArea.classList.remove('left-open');
+                    this.chatArea.classList.remove('right-open');
+                } else {
+                    // Desktop: left sidebar open by default
+                    this.leftSidebar.classList.remove('closed');
+                    this.rightSidebar.classList.remove('open');
+                    this.chatArea.classList.add('left-open');
+                    this.chatArea.classList.remove('right-open');
+                }
+                
+                // Handle window resize
+                window.addEventListener('resize', () => {
+                    if (window.innerWidth <= 768) {
+                        // Switching to mobile
+                        if (this.overlay.classList.contains('show')) {
+                            // Keep overlay active if sidebar was open
+                            document.body.classList.add('overlay-active');
+                        }
+                        this.chatArea.classList.remove('left-open');
+                        this.chatArea.classList.remove('right-open');
+                    } else {
+                        // Switching to desktop
+                        this.overlay.classList.remove('show');
+                        document.body.classList.remove('overlay-active');
+                        
+                        // Restore desktop layout based on sidebar states
+                        if (!this.leftSidebar.classList.contains('closed')) {
+                            this.chatArea.classList.add('left-open');
+                        }
+                        if (this.rightSidebar.classList.contains('open')) {
+                            this.chatArea.classList.add('right-open');
+                        }
+                    }
+                });
             }
 
             bindEvents() {
@@ -935,15 +987,16 @@
                 if (isClosed) {
                     // Opening sidebar
                     this.leftSidebar.classList.remove('closed');
-                    this.chatArea.classList.remove('left-closed');
-                    if (window.innerWidth <= 768) {
+                    if (window.innerWidth > 768) {
+                        this.chatArea.classList.add('left-open');
+                    } else {
                         this.overlay.classList.add('show');
                         document.body.classList.add('overlay-active');
                     }
                 } else {
                     // Closing sidebar
                     this.leftSidebar.classList.add('closed');
-                    this.chatArea.classList.add('left-closed');
+                    this.chatArea.classList.remove('left-open');
                     if (window.innerWidth <= 768) {
                         this.overlay.classList.remove('show');
                         document.body.classList.remove('overlay-active');
@@ -976,7 +1029,7 @@
             closeSidebars() {
                 this.leftSidebar.classList.add('closed');
                 this.rightSidebar.classList.remove('open');
-                this.chatArea.classList.add('left-closed');
+                this.chatArea.classList.remove('left-open');
                 this.chatArea.classList.remove('right-open');
                 this.overlay.classList.remove('show');
                 document.body.classList.remove('overlay-active');
@@ -1456,16 +1509,24 @@
         
         // Additional mobile optimizations
         document.body.addEventListener('touchmove', (e) => {
-            // Prevent overscroll bounce
-            const touch = e.touches[0];
+            // Don't prevent scrolling in scrollable areas
             const element = e.target;
             
-            // Allow scrolling within chat messages area
-            if (element.closest('.chat-messages') || element.closest('.sidebar-content')) {
+            // Allow scrolling within chat messages area, sidebar content, and input areas
+            if (element.closest('.chat-messages') || 
+                element.closest('.sidebar-content') || 
+                element.closest('.input-field') ||
+                element.closest('.tree-view')) {
                 return; // Allow normal scrolling
             }
             
-            // Prevent default for other areas to avoid bounce
+            // Don't prevent default if overlay is not showing (allows normal page interaction)
+            const overlay = document.getElementById('overlay');
+            if (!overlay || !overlay.classList.contains('show')) {
+                return;
+            }
+            
+            // Only prevent default when overlay is active to avoid bounce
             e.preventDefault();
         }, { passive: false });
     </script>
