@@ -126,3 +126,119 @@ claude_web/
 - **Projects**: Physical directories where Claude CLI executes
 - **Threads**: JSON metadata files linking to Claude sessions
 - **Generated Files**: Created directly by Claude in project directories
+
+### Advanced Features Implementation
+
+**🎨 Syntax Highlighting (Prism.js)**
+- **CDN Integration**: Loads Prism.js components on demand
+- **50+ Languages**: Automatic language detection from file extensions
+- **Line Numbers**: Professional code display with line numbering
+- **Themes**: Clean, readable syntax highlighting theme
+
+```html
+<!-- Auto-loaded based on file type -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+```
+
+**📱 Mobile Optimization**
+- **Viewport Handling**: Prevents zoom on input focus
+- **Touch Targets**: Minimum 44px touch areas for accessibility
+- **Keyboard Management**: Smart virtual keyboard handling
+- **Pull-to-Refresh Prevention**: Avoids accidental page reloads
+- **Responsive Typography**: Scales appropriately across devices
+
+**✏️ In-Browser File Editing**
+- **Real-time Validation**: Checks for unsaved changes
+- **Auto-save Protection**: Prevents accidental data loss
+- **Keyboard Shortcuts**: Standard editing shortcuts (Ctrl+S, Escape)
+- **Visual Feedback**: Clear edit/view mode indicators
+
+### Security & Safety Features
+
+**File Operations**
+- **Path Traversal Protection**: Prevents access outside project directories
+- **File Type Validation**: Safe handling of binary vs text files
+- **Size Limits**: Reasonable file size restrictions
+- **Backup on Edit**: Preserves original content during editing
+
+**Error Handling**
+- **Graceful Degradation**: Continues operation when non-critical features fail
+- **User Feedback**: Clear error messages with actionable guidance
+- **Recovery Options**: Automatic retry and fallback mechanisms
+- **Debug Information**: Detailed logging for troubleshooting
+
+### Performance Optimizations
+
+**Frontend**
+- **Lazy Loading**: CDN resources loaded only when needed
+- **Efficient DOM Updates**: Minimal reflows and repaints
+- **Memory Management**: Proper cleanup of event listeners
+- **Caching Strategy**: Smart use of browser cache for static assets
+
+**Backend**
+- **Process Management**: Efficient subprocess handling for Claude CLI
+- **Resource Cleanup**: Proper cleanup of temporary files and processes
+- **Connection Pooling**: Efficient handling of concurrent requests
+- **File System Optimization**: Minimal disk I/O with smart caching
+
+### API Documentation
+
+**Core Endpoints**
+```
+GET  /projects                              # List all projects
+POST /project/new                           # Create new project
+GET  /project/:name/threads                 # Get project threads
+POST /project/:name/thread/new              # Create new thread
+POST /project/:name/thread/:id/message      # Send message to Claude
+GET  /project/:name/files                   # Get project file tree
+GET  /project/:name/file?path=:path         # View specific file
+POST /project/:name/file/:path/save         # Save file content
+DELETE /project/:name/thread/:id            # Delete thread
+DELETE /project/:name                       # Delete project
+GET  /status/:job_id                        # Get async job status
+```
+
+**Response Formats**
+- **Success**: `{"success": true, "data": {...}}`
+- **Error**: `{"success": false, "error": "message", "details": {...}}`
+- **Async**: `{"job_id": "uuid", "status": "queued"}`
+
+---
+
+## 🚀 Development & Contributing
+
+### Development Setup
+```bash
+# Clone repository
+git clone <repository-url>
+cd claude_web
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run in development mode
+export FLASK_DEBUG=1
+python start.py
+```
+
+### Contributing Guidelines
+- 🧪 **Test thoroughly** on both desktop and mobile
+- 📱 **Mobile-first** - always test mobile experience
+- 🎨 **Maintain consistency** with existing UI patterns
+- 🔧 **Document changes** - update README for new features
+- 🛡️ **Security first** - validate all user inputs
+
+### Future Roadmap
+- 🌙 **Dark Mode** - Theme switching capability
+- 🔍 **Search** - Global search across projects and conversations
+- 📊 **Analytics** - Usage statistics and insights
+- 🔄 **Sync** - Cloud synchronization for projects
+- 🎯 **Templates** - Project templates for common workflows
+
+---
+
+**Built with ❤️ for the Claude Code community**
+
+*Claude Web Runner transforms Claude Code into a powerful, accessible web platform that works everywhere - from your desktop to your phone. Experience the future of AI-powered development with professional project management, advanced file operations, and a mobile-first design that never compromises on functionality.*

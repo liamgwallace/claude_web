@@ -416,6 +416,44 @@ class ClaudeWrapper:
         except (UnicodeDecodeError, PermissionError) as e:
             logger.error(f"Error reading file {file_path}: {e}")
             return None
+
+    def write_file_content(self, project_name: str, file_path: str, content: str) -> Tuple[bool, str]:
+        """
+        Write content to a specific file in the project directory.
+        Returns (success, message) tuple.
+        """
+        project_dir = self.base_projects_dir / project_name
+        
+        # Check if project exists
+        if not project_dir.exists():
+            return False, f"Project '{project_name}' not found"
+            
+        target_file = project_dir / file_path
+        
+        # Security check - ensure file is within project directory
+        try:
+            target_file.resolve().relative_to(project_dir.resolve())
+        except ValueError:
+            logger.warning(f"Attempted write outside project directory: {file_path}")
+            return False, "Access denied: file path outside project directory"
+        
+        try:
+            # Ensure parent directories exist
+            target_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Write the file
+            with open(target_file, 'w', encoding='utf-8') as f:
+                f.write(content)
+            
+            logger.info(f"Successfully wrote file {file_path} in project {project_name}")
+            return True, f"File '{file_path}' saved successfully"
+            
+        except PermissionError as e:
+            logger.error(f"Permission error writing file {file_path}: {e}")
+            return False, f"Permission denied: unable to write file"
+        except Exception as e:
+            logger.error(f"Error writing file {file_path}: {e}")
+            return False, f"Error saving file: {str(e)}"
     
     def get_thread_status(self, project_name: str, thread_id: str) -> Dict:
         """

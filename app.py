@@ -10,6 +10,7 @@ from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 import logging
 import os
+import json
 from claude_wrapper import ClaudeWrapper
 import asyncio
 from threading import Thread
@@ -377,6 +378,37 @@ def get_file_content(project_name):
         logger.error(f"Error getting file content for project {project_name}: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route('/project/<project_name>/file/<path:file_path>/save', methods=['POST'])
+def save_file_content(project_name, file_path):
+    """
+    POST /project/:project_name/file/:file_path/save – Saves content to the specified file
+    """
+    try:
+        data = request.get_json()
+        if not data or 'content' not in data:
+            return jsonify({"success": False, "error": "Content is required"}), 400
+            
+        content = data['content']
+        
+        success, message = claude_wrapper.write_file_content(project_name, file_path, content)
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "project_name": project_name,
+                "file_path": file_path,
+                "message": message
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": message
+            }), 400 if "not found" in message.lower() or "access denied" in message.lower() else 500
+        
+    except Exception as e:
+        logger.error(f"Error saving file content for project {project_name}, file {file_path}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @app.route('/status/<job_id>', methods=['GET'])
 def get_job_status(job_id):
     """
@@ -541,7 +573,7 @@ def serve_file_viewer(project_name, file_path):
                 # Plain text
                 file_content = f'<pre style="white-space: pre-wrap; word-wrap: break-word;">{escaped_content}</pre>'
         
-        # Return lightweight HTML with Prism.js syntax highlighting
+        # Return enhanced HTML with editing capabilities
         return f"""
 <!DOCTYPE html>
 <html>
@@ -549,13 +581,18 @@ def serve_file_viewer(project_name, file_path):
     <title>{file_path.split('/')[-1]} - {project_name}</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        * {{
+            box-sizing: border-box;
+        }}
         body {{
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
             background: #f8f9fa;
             line-height: 1.6;
+            min-height: 100vh;
         }}
         .header {{
             background: white;
@@ -563,6 +600,14 @@ def serve_file_viewer(project_name, file_path):
             border-radius: 6px;
             margin-bottom: 20px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }}
+        .file-info-section {{
+            flex: 1;
         }}
         .file-name {{
             font-size: 18px;
@@ -574,17 +619,117 @@ def serve_file_viewer(project_name, file_path):
             font-size: 14px;
             color: #6c757d;
         }}
+        .toolbar {{
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }}
+        .btn {{
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: #495057;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }}
+        .btn:hover {{
+            background: #e9ecef;
+            border-color: #adb5bd;
+        }}
+        .btn.primary {{
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }}
+        .btn.primary:hover {{
+            background: #0056b3;
+            border-color: #0056b3;
+        }}
+        .btn.danger {{
+            background: #dc3545;
+            color: white;
+            border-color: #dc3545;
+        }}
+        .btn.danger:hover {{
+            background: #c82333;
+            border-color: #c82333;
+        }}
+        .btn.success {{
+            background: #28a745;
+            color: white;
+            border-color: #28a745;
+        }}
+        .btn.success:hover {{
+            background: #218838;
+            border-color: #218838;
+        }}
+        .btn:disabled {{
+            opacity: 0.6;
+            cursor: not-allowed;
+        }}
+        .btn:disabled:hover {{
+            background: #f8f9fa;
+            border-color: #ddd;
+        }}
+        .btn.primary:disabled:hover {{
+            background: #007bff;
+            border-color: #007bff;
+        }}
+        .close-btn {{
+            background: #dc3545;
+            color: white;
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 0;
+        }}
+        .close-btn:hover {{
+            background: #c82333;
+        }}
         .content {{
             background: white;
             border-radius: 6px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             max-height: calc(100vh - 120px);
             overflow: auto;
+            position: relative;
+        }}
+        .editor-container {{
+            position: relative;
+            min-height: 400px;
+        }}
+        .editor-textarea {{
+            width: 100%;
+            min-height: 400px;
+            padding: 20px;
+            border: none;
+            outline: none;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            resize: vertical;
+            background: white;
+            color: #333;
+            border-radius: 6px;
         }}
         /* Custom Prism.js styling */
         pre[class*="language-"] {{
             margin: 0;
-            padding: 0;
+            padding: 20px;
             font-size: 14px;
             line-height: 1.5;
         }}
@@ -605,17 +750,107 @@ def serve_file_viewer(project_name, file_path):
             white-space: pre-wrap;
             word-wrap: break-word;
         }}
+        .status-message {{
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            border-radius: 4px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            display: none;
+        }}
+        .status-message.success {{
+            background: #28a745;
+        }}
+        .status-message.error {{
+            background: #dc3545;
+        }}
+        .loading-overlay {{
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+        }}
+        .spinner {{
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }}
+        @keyframes spin {{
+            0% {{ transform: rotate(0deg); }}
+            100% {{ transform: rotate(360deg); }}
+        }}
+        /* Responsive design */
+        @media (max-width: 768px) {{
+            body {{ padding: 5px; }}
+            .header {{ 
+                padding: 10px 15px;
+                flex-direction: column;
+                align-items: stretch;
+            }}
+            .toolbar {{ 
+                justify-content: center;
+                margin-top: 10px;
+            }}
+            .btn {{ 
+                padding: 10px 15px;
+                font-size: 16px;
+            }}
+            .file-name {{ font-size: 16px; }}
+            pre[class*="language-"], pre:not([class*="language-"]), .editor-textarea {{ 
+                padding: 15px;
+                font-size: 16px;
+            }}
+        }}
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="file-name">📄 {file_path.split('/')[-1]}</div>
-        <div class="file-info">Project: {project_name} • Path: {file_path}</div>
+        <div class="file-info-section">
+            <div class="file-name">📄 {file_path.split('/')[-1]}</div>
+            <div class="file-info">Project: {project_name} • Path: {file_path}</div>
+        </div>
+        <div class="toolbar">
+            <button id="editBtn" class="btn primary" onclick="toggleEditMode()">
+                <span id="editIcon">✏️</span> <span id="editText">Edit</span>
+            </button>
+            <button id="saveBtn" class="btn success" onclick="saveFile()" style="display: none;" disabled>
+                💾 Save
+            </button>
+            <button class="close-btn" onclick="closeWindow()" title="Close">×</button>
+        </div>
     </div>
     
     <div class="content">
-        {file_content}
+        <div class="editor-container">
+            <!-- View Mode -->
+            <div id="viewContent">
+                {file_content}
+            </div>
+            
+            <!-- Edit Mode -->
+            <textarea id="editContent" class="editor-textarea" style="display: none;">{html.escape(content) if not is_binary else ""}</textarea>
+            
+            <!-- Loading Overlay -->
+            <div id="loadingOverlay" class="loading-overlay">
+                <div class="spinner"></div>
+            </div>
+        </div>
     </div>
+    
+    <!-- Status Message -->
+    <div id="statusMessage" class="status-message"></div>
     
     <!-- Prism.js JavaScript -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
@@ -625,9 +860,164 @@ def serve_file_viewer(project_name, file_path):
         // Configure Prism.js autoloader
         Prism.plugins.autoloader.languages_path = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/';
         
+        // Application state
+        let isEditMode = false;
+        let isLoading = false;
+        let originalContent = {json.dumps(content if not is_binary else "", ensure_ascii=False)};
+        let hasUnsavedChanges = false;
+        
         // Initialize syntax highlighting
         document.addEventListener('DOMContentLoaded', function() {{
             Prism.highlightAll();
+            
+            // Set up change detection
+            const editTextarea = document.getElementById('editContent');
+            editTextarea.addEventListener('input', function() {{
+                hasUnsavedChanges = editTextarea.value !== originalContent;
+                updateSaveButton();
+            }});
+            
+            // Prevent accidental page close with unsaved changes
+            window.addEventListener('beforeunload', function(e) {{
+                if (hasUnsavedChanges) {{
+                    e.preventDefault();
+                    e.returnValue = '';
+                }});
+            }});
+        }});
+        
+        function toggleEditMode() {{
+            if (isLoading) return;
+            
+            const viewContent = document.getElementById('viewContent');
+            const editContent = document.getElementById('editContent');
+            const editBtn = document.getElementById('editBtn');
+            const saveBtn = document.getElementById('saveBtn');
+            const editIcon = document.getElementById('editIcon');
+            const editText = document.getElementById('editText');
+            
+            if (!isEditMode) {{
+                // Switch to edit mode
+                viewContent.style.display = 'none';
+                editContent.style.display = 'block';
+                editContent.value = originalContent;
+                editBtn.classList.remove('primary');
+                editBtn.classList.add('danger');
+                editIcon.textContent = '👁️';
+                editText.textContent = 'View';
+                saveBtn.style.display = 'inline-flex';
+                isEditMode = true;
+                hasUnsavedChanges = false;
+                updateSaveButton();
+                editContent.focus();
+            }} else {{
+                // Switch to view mode
+                if (hasUnsavedChanges) {{
+                    if (!confirm('You have unsaved changes. Are you sure you want to discard them?')) {{
+                        return;
+                    }}
+                }}
+                viewContent.style.display = 'block';
+                editContent.style.display = 'none';
+                editBtn.classList.remove('danger');
+                editBtn.classList.add('primary');
+                editIcon.textContent = '✏️';
+                editText.textContent = 'Edit';
+                saveBtn.style.display = 'none';
+                isEditMode = false;
+                hasUnsavedChanges = false;
+            }}
+        }}
+        
+        function updateSaveButton() {{
+            const saveBtn = document.getElementById('saveBtn');
+            saveBtn.disabled = !hasUnsavedChanges || isLoading;
+        }}
+        
+        async function saveFile() {{
+            if (isLoading || !hasUnsavedChanges) return;
+            
+            const editContent = document.getElementById('editContent');
+            const content = editContent.value;
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            
+            try {{
+                isLoading = true;
+                loadingOverlay.style.display = 'flex';
+                updateSaveButton();
+                
+                const response = await fetch(`/project/{project_name}/file/{file_path}/save`, {{
+                    method: 'POST',
+                    headers: {{
+                        'Content-Type': 'application/json',
+                    }},
+                    body: JSON.stringify({{ content: content }})
+                }});
+                
+                const result = await response.json();
+                
+                if (result.success) {{
+                    originalContent = content;
+                    hasUnsavedChanges = false;
+                    showStatusMessage('File saved successfully!', 'success');
+                    updateSaveButton();
+                }} else {{
+                    showStatusMessage('Error saving file: ' + result.error, 'error');
+                }}
+            }} catch (error) {{
+                showStatusMessage('Error saving file: ' + error.message, 'error');
+            }} finally {{
+                isLoading = false;
+                loadingOverlay.style.display = 'none';
+                updateSaveButton();
+            }}
+        }}
+        
+        function showStatusMessage(message, type = 'success') {{
+            const statusMessage = document.getElementById('statusMessage');
+            statusMessage.textContent = message;
+            statusMessage.className = 'status-message ' + type;
+            statusMessage.style.display = 'block';
+            
+            setTimeout(() => {{
+                statusMessage.style.display = 'none';
+            }}, 3000);
+        }}
+        
+        function closeWindow() {{
+            if (hasUnsavedChanges) {{
+                if (!confirm('You have unsaved changes. Are you sure you want to close?')) {{
+                    return;
+                }}
+            }}
+            
+            // Try to close the window/tab
+            if (window.opener || window.history.length > 1) {{
+                window.close();
+            }} else {{
+                // Fallback: go back or show message
+                if (document.referrer) {{
+                    window.location.href = document.referrer;
+                }} else {{
+                    showStatusMessage('Cannot close window automatically. Please close manually.', 'error');
+                }}
+            }}
+        }}
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {{
+            // Ctrl+S or Cmd+S to save
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {{
+                e.preventDefault();
+                if (isEditMode && hasUnsavedChanges) {{
+                    saveFile();
+                }}
+            }}
+            
+            // Escape to toggle edit mode
+            if (e.key === 'Escape') {{
+                toggleEditMode();
+            }}
         }});
     </script>
 </body>
