@@ -131,6 +131,8 @@
             border-radius: 6px;
             transition: background 0.2s;
             user-select: none;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .tree-item-content:hover {
@@ -427,6 +429,14 @@
             /* Ensure proper mobile layout */
             body {
                 overflow-x: hidden;
+                /* Ensure touch events are processed */
+                touch-action: pan-y pinch-zoom;
+            }
+            
+            /* Ensure all interactive elements work on mobile */
+            button, a, .tree-item-content, input, textarea {
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: rgba(0,0,0,0.1);
             }
             
             .main-container {
@@ -497,6 +507,10 @@
                 -webkit-appearance: none;
                 appearance: none;
                 touch-action: manipulation;
+                /* Ensure input can receive touch focus */
+                -webkit-user-select: text;
+                user-select: text;
+                -webkit-tap-highlight-color: rgba(0,0,0,0.1);
             }
             
             .send-btn {
@@ -508,6 +522,14 @@
             /* Header adjustments */
             .header {
                 padding: 0 15px;
+                /* Ensure header buttons work on mobile */
+                touch-action: manipulation;
+            }
+            
+            .header button {
+                touch-action: manipulation;
+                min-height: 44px;
+                min-width: 44px;
             }
             
             .header-title {
@@ -533,7 +555,8 @@
             opacity: 0;
             visibility: hidden;
             transition: all 0.3s ease;
-            touch-action: manipulation;
+            touch-action: auto;
+            /* Allow all touch interactions on overlay */
         }
 
         .overlay.show {
@@ -541,11 +564,10 @@
             visibility: visible;
         }
         
-        /* Prevent body scroll when overlay is active */
+        /* Prevent body scroll when overlay is active - less aggressive */
         body.overlay-active {
             overflow: hidden;
-            position: fixed;
-            width: 100%;
+            /* Removed position: fixed as it can interfere with touch events */
         }
     </style>
 </head>
@@ -734,10 +756,24 @@
             }
 
             bindEvents() {
-                // Sidebar toggles
+                // Sidebar toggles - add both click and touchend for better mobile support
                 this.leftSidebarToggle.addEventListener('click', () => this.toggleLeftSidebar());
+                this.leftSidebarToggle.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.toggleLeftSidebar();
+                });
+                
                 this.rightSidebarToggle.addEventListener('click', () => this.toggleRightSidebar());
+                this.rightSidebarToggle.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.toggleRightSidebar();
+                });
+                
                 this.overlay.addEventListener('click', () => this.closeSidebars());
+                this.overlay.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.closeSidebars();
+                });
 
                 // Input events
                 this.messageInput.addEventListener('input', () => this.handleInputChange());
@@ -745,12 +781,35 @@
                 this.messageInput.addEventListener('focus', () => this.handleInputFocus());
                 this.messageInput.addEventListener('blur', () => this.handleInputBlur());
                 this.sendBtn.addEventListener('click', () => this.sendMessage());
+                this.sendBtn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.sendMessage();
+                });
 
-                // Button events
+                // Button events - add touch support for mobile
                 this.newProjectBtn.addEventListener('click', () => this.createProject());
+                this.newProjectBtn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.createProject();
+                });
+                
                 this.deleteProjectBtn.addEventListener('click', () => this.deleteProject());
+                this.deleteProjectBtn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.deleteProject();
+                });
+                
                 this.newThreadBtn.addEventListener('click', () => this.createThread());
+                this.newThreadBtn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.createThread();
+                });
+                
                 this.deleteThreadBtn.addEventListener('click', () => this.deleteThread());
+                this.deleteThreadBtn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.deleteThread();
+                });
 
                 // Auto-resize textarea
                 this.messageInput.addEventListener('input', () => this.autoResizeTextarea());
@@ -835,8 +894,18 @@
                         e.stopPropagation();
                         this.toggleTreeItem(li, type, id);
                     });
+                    content.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.toggleTreeItem(li, type, id);
+                    });
                 } else {
                     content.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.selectTreeItem(type, id);
+                    });
+                    content.addEventListener('touchend', (e) => {
+                        e.preventDefault();
                         e.stopPropagation();
                         this.selectTreeItem(type, id);
                     });
@@ -1423,6 +1492,11 @@
                             e.stopPropagation();
                             this.toggleFileTreeItem(li);
                         });
+                        content.addEventListener('touchend', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            this.toggleFileTreeItem(li);
+                        });
                     }
                     
                     const labelSpan = document.createElement('span');
@@ -1494,40 +1568,52 @@
             new ClaudeWebApp();
         });
         
-        // Prevent pull-to-refresh on mobile
+        // Prevent pull-to-refresh on mobile (more targeted approach)
         document.body.addEventListener('touchstart', (e) => {
             if (e.touches.length !== 1) return;
             
             const touch = e.touches[0];
             const isAtTop = document.documentElement.scrollTop === 0 || document.body.scrollTop === 0;
             
-            if (isAtTop && touch.clientY > 0) {
-                // Allow normal touch behavior but prevent overscroll
-                e.preventDefault();
+            // Only prevent pull-to-refresh when actually at top and pulling down significantly
+            if (isAtTop && touch.clientY > 100) {
+                // Check if this is actually a pull-down gesture by checking target
+                const target = e.target;
+                if (!target.closest('.input-field') && 
+                    !target.closest('button') && 
+                    !target.closest('a') &&
+                    !target.closest('.tree-item-content')) {
+                    e.preventDefault();
+                }
             }
         }, { passive: false });
         
-        // Additional mobile optimizations
+        // Additional mobile optimizations (much more permissive)
         document.body.addEventListener('touchmove', (e) => {
-            // Don't prevent scrolling in scrollable areas
             const element = e.target;
             
-            // Allow scrolling within chat messages area, sidebar content, and input areas
+            // Always allow scrolling in interactive areas
             if (element.closest('.chat-messages') || 
                 element.closest('.sidebar-content') || 
                 element.closest('.input-field') ||
-                element.closest('.tree-view')) {
-                return; // Allow normal scrolling
+                element.closest('.tree-view') ||
+                element.closest('button') ||
+                element.closest('a') ||
+                element.closest('.tree-item-content')) {
+                return; // Allow all interactions
             }
             
-            // Don't prevent default if overlay is not showing (allows normal page interaction)
+            // Only prevent bounce scrolling when overlay is active AND at document edges
             const overlay = document.getElementById('overlay');
-            if (!overlay || !overlay.classList.contains('show')) {
-                return;
+            if (overlay && overlay.classList.contains('show')) {
+                const isAtTop = document.documentElement.scrollTop === 0;
+                const isAtBottom = (window.innerHeight + document.documentElement.scrollTop) >= document.documentElement.offsetHeight;
+                
+                // Only prevent at edges to avoid bounce
+                if (isAtTop || isAtBottom) {
+                    e.preventDefault();
+                }
             }
-            
-            // Only prevent default when overlay is active to avoid bounce
-            e.preventDefault();
         }, { passive: false });
     </script>
 </body>
