@@ -501,7 +501,7 @@ def delete_project(project_name):
 
 @app.route('/<project_name>/file/<path:file_path>')
 def serve_file_viewer(project_name, file_path):
-    """Serve the file viewer for a specific project file."""
+    """Serve the fixed file viewer for a specific project file."""
     try:
         # Handle empty file path 
         if not file_path or file_path == '':
@@ -572,6 +572,12 @@ def serve_file_viewer(project_name, file_path):
             else:
                 # Plain text
                 file_content = f'<pre style="white-space: pre-wrap; word-wrap: break-word;">{escaped_content}</pre>'
+        
+        # Prepare data for JavaScript (using safe JSON encoding)
+        original_content_json = json.dumps(content if not is_binary else "", ensure_ascii=False)
+        project_name_json = json.dumps(project_name, ensure_ascii=False)
+        file_path_json = json.dumps(file_path, ensure_ascii=False)
+        escaped_content_json = json.dumps(html.escape(content) if not is_binary else "", ensure_ascii=False)
         
         # Return enhanced HTML with editing capabilities
         return f"""
@@ -860,165 +866,325 @@ def serve_file_viewer(project_name, file_path):
         // Configure Prism.js autoloader
         Prism.plugins.autoloader.languages_path = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/';
         
-        // Application state
-        let isEditMode = false;
-        let isLoading = false;
-        let originalContent = {json.dumps(content if not is_binary else "", ensure_ascii=False)};
-        let hasUnsavedChanges = false;
+        // Application state - Using pre-generated JSON to avoid template conflicts
+        var isEditMode = false;
+        var isLoading = false;
+        var originalContent = {original_content_json};
+        var hasUnsavedChanges = false;
+        var projectName = {project_name_json};
+        var filePath = {file_path_json};
         
-        // Initialize syntax highlighting
+        // Initialize syntax highlighting and setup
         document.addEventListener('DOMContentLoaded', function() {{
-            Prism.highlightAll();
+            console.log('File viewer loading...');
+            
+            try {{
+                Prism.highlightAll();
+                console.log('Prism syntax highlighting applied');
+            }} catch(e) {{
+                console.log('Prism highlighting failed:', e);
+            }}
             
             // Set up change detection
-            const editTextarea = document.getElementById('editContent');
-            editTextarea.addEventListener('input', function() {{
-                hasUnsavedChanges = editTextarea.value !== originalContent;
-                updateSaveButton();
-            }});
+            var editTextarea = document.getElementById('editContent');
+            if (editTextarea) {{
+                editTextarea.addEventListener('input', function() {{
+                    hasUnsavedChanges = editTextarea.value !== originalContent;
+                    updateSaveButton();
+                }});
+                console.log('Change detection set up');
+            }} else {{
+                console.error('Edit textarea not found');
+            }}
             
             // Prevent accidental page close with unsaved changes
             window.addEventListener('beforeunload', function(e) {{
                 if (hasUnsavedChanges) {{
                     e.preventDefault();
                     e.returnValue = '';
-                }});
+                    return '';
+                }}
             }});
+            
+            console.log('File viewer initialized successfully');
         }});
         
         function toggleEditMode() {{
-            if (isLoading) return;
+            console.log('toggleEditMode called, isLoading:', isLoading);
             
-            const viewContent = document.getElementById('viewContent');
-            const editContent = document.getElementById('editContent');
-            const editBtn = document.getElementById('editBtn');
-            const saveBtn = document.getElementById('saveBtn');
-            const editIcon = document.getElementById('editIcon');
-            const editText = document.getElementById('editText');
+            if (isLoading) {{
+                console.log('Cannot toggle edit mode while loading');
+                return;
+            }}
             
-            if (!isEditMode) {{
-                // Switch to edit mode
-                viewContent.style.display = 'none';
-                editContent.style.display = 'block';
-                editContent.value = originalContent;
-                editBtn.classList.remove('primary');
-                editBtn.classList.add('danger');
-                editIcon.textContent = '👁️';
-                editText.textContent = 'View';
-                saveBtn.style.display = 'inline-flex';
-                isEditMode = true;
-                hasUnsavedChanges = false;
-                updateSaveButton();
-                editContent.focus();
-            }} else {{
-                // Switch to view mode
-                if (hasUnsavedChanges) {{
-                    if (!confirm('You have unsaved changes. Are you sure you want to discard them?')) {{
-                        return;
+            var viewContent = document.getElementById('viewContent');
+            var editContent = document.getElementById('editContent');
+            var editBtn = document.getElementById('editBtn');
+            var saveBtn = document.getElementById('saveBtn');
+            var editIcon = document.getElementById('editIcon');
+            var editText = document.getElementById('editText');
+            
+            if (!viewContent || !editContent || !editBtn || !saveBtn || !editIcon || !editText) {{
+                console.error('Required elements not found for edit mode toggle');
+                showStatusMessage('Error: Required elements not found', 'error');
+                return;
+            }}
+            
+            try {{
+                if (!isEditMode) {{
+                    // Switch to edit mode
+                    console.log('Switching to edit mode');
+                    viewContent.style.display = 'none';
+                    editContent.style.display = 'block';
+                    editContent.value = originalContent;
+                    editBtn.classList.remove('primary');
+                    editBtn.classList.add('danger');
+                    editIcon.textContent = '👁️';
+                    editText.textContent = 'View';
+                    saveBtn.style.display = 'inline-flex';
+                    isEditMode = true;
+                    hasUnsavedChanges = false;
+                    updateSaveButton();
+                    editContent.focus();
+                    console.log('Successfully switched to edit mode');
+                }} else {{
+                    // Switch to view mode
+                    console.log('Switching to view mode');
+                    if (hasUnsavedChanges) {{
+                        if (!confirm('You have unsaved changes. Are you sure you want to discard them?')) {{
+                            return;
+                        }}
                     }}
+                    viewContent.style.display = 'block';
+                    editContent.style.display = 'none';
+                    editBtn.classList.remove('danger');
+                    editBtn.classList.add('primary');
+                    editIcon.textContent = '✏️';
+                    editText.textContent = 'Edit';
+                    saveBtn.style.display = 'none';
+                    isEditMode = false;
+                    hasUnsavedChanges = false;
+                    console.log('Successfully switched to view mode');
                 }}
-                viewContent.style.display = 'block';
-                editContent.style.display = 'none';
-                editBtn.classList.remove('danger');
-                editBtn.classList.add('primary');
-                editIcon.textContent = '✏️';
-                editText.textContent = 'Edit';
-                saveBtn.style.display = 'none';
-                isEditMode = false;
-                hasUnsavedChanges = false;
+            }} catch(error) {{
+                console.error('Error toggling edit mode:', error);
+                showStatusMessage('Error toggling edit mode: ' + error.message, 'error');
             }}
         }}
         
         function updateSaveButton() {{
-            const saveBtn = document.getElementById('saveBtn');
-            saveBtn.disabled = !hasUnsavedChanges || isLoading;
+            var saveBtn = document.getElementById('saveBtn');
+            if (saveBtn) {{
+                saveBtn.disabled = !hasUnsavedChanges || isLoading;
+                console.log('Save button updated: disabled =', saveBtn.disabled);
+            }}
         }}
         
-        async function saveFile() {{
-            if (isLoading || !hasUnsavedChanges) return;
+        function saveFile() {{
+            console.log('saveFile called, isLoading:', isLoading, 'hasUnsavedChanges:', hasUnsavedChanges);
             
-            const editContent = document.getElementById('editContent');
-            const content = editContent.value;
-            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (isLoading || !hasUnsavedChanges) {{
+                console.log('Cannot save: loading=' + isLoading + ', hasUnsavedChanges=' + hasUnsavedChanges);
+                return;
+            }}
             
-            try {{
-                isLoading = true;
-                loadingOverlay.style.display = 'flex';
-                updateSaveButton();
-                
-                const response = await fetch(`/project/{project_name}/file/{file_path}/save`, {{
-                    method: 'POST',
-                    headers: {{
-                        'Content-Type': 'application/json',
-                    }},
-                    body: JSON.stringify({{ content: content }})
-                }});
-                
-                const result = await response.json();
-                
+            var editContent = document.getElementById('editContent');
+            var loadingOverlay = document.getElementById('loadingOverlay');
+            
+            if (!editContent) {{
+                console.error('Edit content element not found');
+                showStatusMessage('Error: Edit content not found', 'error');
+                return;
+            }}
+            
+            var content = editContent.value;
+            console.log('Saving file with content length:', content.length);
+            
+            isLoading = true;
+            if (loadingOverlay) loadingOverlay.style.display = 'flex';
+            updateSaveButton();
+            
+            var saveUrl = '/project/' + encodeURIComponent(projectName) + '/file/' + encodeURIComponent(filePath) + '/save';
+            console.log('Save URL:', saveUrl);
+            
+            fetch(saveUrl, {{
+                method: 'POST',
+                headers: {{
+                    'Content-Type': 'application/json',
+                }},
+                body: JSON.stringify({{ content: content }})
+            }})
+            .then(function(response) {{
+                console.log('Save response status:', response.status);
+                return response.json();
+            }})
+            .then(function(result) {{
+                console.log('Save result:', result);
                 if (result.success) {{
                     originalContent = content;
                     hasUnsavedChanges = false;
                     showStatusMessage('File saved successfully!', 'success');
                     updateSaveButton();
+                    console.log('File saved successfully');
                 }} else {{
                     showStatusMessage('Error saving file: ' + result.error, 'error');
+                    console.error('Save failed:', result.error);
                 }}
-            }} catch (error) {{
+            }})
+            .catch(function(error) {{
                 showStatusMessage('Error saving file: ' + error.message, 'error');
-            }} finally {{
+                console.error('Save error:', error);
+            }})
+            .finally(function() {{
                 isLoading = false;
-                loadingOverlay.style.display = 'none';
+                if (loadingOverlay) loadingOverlay.style.display = 'none';
                 updateSaveButton();
-            }}
+            }});
         }}
         
-        function showStatusMessage(message, type = 'success') {{
-            const statusMessage = document.getElementById('statusMessage');
+        function showStatusMessage(message, type) {{
+            console.log('showStatusMessage:', message, type);
+            
+            var statusMessage = document.getElementById('statusMessage');
+            if (!statusMessage) {{
+                console.error('Status message element not found');
+                return;
+            }}
+            
+            type = type || 'success';
             statusMessage.textContent = message;
             statusMessage.className = 'status-message ' + type;
             statusMessage.style.display = 'block';
             
-            setTimeout(() => {{
+            setTimeout(function() {{
                 statusMessage.style.display = 'none';
             }}, 3000);
         }}
         
         function closeWindow() {{
+            console.log('closeWindow called');
+            
             if (hasUnsavedChanges) {{
                 if (!confirm('You have unsaved changes. Are you sure you want to close?')) {{
+                    console.log('Close cancelled due to unsaved changes');
                     return;
                 }}
             }}
             
-            // Try to close the window/tab
-            if (window.opener || window.history.length > 1) {{
+            // Multiple strategies to close/navigate away
+            var closed = false;
+            
+            try {{
+                // Strategy 1: Try window.close() - works if opened by script or popup
+                console.log('Attempting window.close()');
                 window.close();
-            }} else {{
-                // Fallback: go back or show message
-                if (document.referrer) {{
-                    window.location.href = document.referrer;
-                }} else {{
-                    showStatusMessage('Cannot close window automatically. Please close manually.', 'error');
+                
+                // Check if window actually closed (won't execute if it did)
+                setTimeout(function() {{
+                    if (!closed) {{
+                        console.log('window.close() did not work, trying fallback');
+                        closeWindowFallback();
+                    }}
+                }}, 100);
+                
+            }} catch(error) {{
+                console.log('window.close() failed:', error);
+                closeWindowFallback();
+            }}
+        }}
+        
+        function closeWindowFallback() {{
+            console.log('Using close window fallback strategies');
+            
+            // Strategy 2: Go back in history if available
+            if (window.history && window.history.length > 1) {{
+                console.log('Going back in history');
+                try {{
+                    window.history.back();
+                    return;
+                }} catch(error) {{
+                    console.log('History back failed:', error);
                 }}
             }}
+            
+            // Strategy 3: Use document.referrer if available
+            if (document.referrer && document.referrer !== window.location.href) {{
+                console.log('Navigating to referrer:', document.referrer);
+                try {{
+                    window.location.href = document.referrer;
+                    return;
+                }} catch(error) {{
+                    console.log('Referrer navigation failed:', error);
+                }}
+            }}
+            
+            // Strategy 4: Navigate to parent directory or root
+            try {{
+                var currentUrl = window.location.href;
+                var pathParts = currentUrl.split('/');
+                if (pathParts.length > 3) {{
+                    // Go to parent path (remove file part)
+                    pathParts.pop(); // remove file
+                    pathParts.pop(); // remove 'file'
+                    var parentUrl = pathParts.join('/');
+                    console.log('Navigating to parent:', parentUrl);
+                    window.location.href = parentUrl;
+                    return;
+                }}
+            }} catch(error) {{
+                console.log('Parent navigation failed:', error);
+            }}
+            
+            // Strategy 5: Go to root
+            try {{
+                console.log('Navigating to root');
+                window.location.href = '/';
+                return;
+            }} catch(error) {{
+                console.log('Root navigation failed:', error);
+            }}
+            
+            // Final fallback: Show message
+            showStatusMessage('Cannot close window automatically. Please close the tab manually.', 'error');
         }}
         
         // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {{
-            // Ctrl+S or Cmd+S to save
-            if ((e.ctrlKey || e.metaKey) && e.key === 's') {{
-                e.preventDefault();
-                if (isEditMode && hasUnsavedChanges) {{
-                    saveFile();
+            try {{
+                // Ctrl+S or Cmd+S to save
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {{
+                    e.preventDefault();
+                    if (isEditMode && hasUnsavedChanges) {{
+                        console.log('Keyboard shortcut: Save');
+                        saveFile();
+                    }}
                 }}
-            }}
-            
-            // Escape to toggle edit mode
-            if (e.key === 'Escape') {{
-                toggleEditMode();
+                
+                // Escape to toggle edit mode
+                if (e.key === 'Escape') {{
+                    console.log('Keyboard shortcut: Toggle edit mode');
+                    toggleEditMode();
+                }}
+                
+                // Ctrl+W or Cmd+W to close (with confirmation)
+                if ((e.ctrlKey || e.metaKey) && e.key === 'w') {{
+                    if (hasUnsavedChanges) {{
+                        e.preventDefault();
+                        closeWindow();
+                    }}
+                }}
+            }} catch(error) {{
+                console.error('Keyboard shortcut error:', error);
             }}
         }});
+        
+        // Add error handling for uncaught errors
+        window.addEventListener('error', function(e) {{
+            console.error('Uncaught error:', e.error);
+            showStatusMessage('An error occurred: ' + e.message, 'error');
+        }});
+        
+        console.log('File viewer script loaded successfully');
     </script>
 </body>
 </html>

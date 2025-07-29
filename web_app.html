@@ -71,6 +71,8 @@
             display: flex;
             position: relative;
             overflow: hidden;
+            /* Ensure proper mobile behavior */
+            touch-action: pan-x pan-y;
         }
 
         /* Left Sidebar */
@@ -112,7 +114,12 @@
         .sidebar-content {
             flex: 1;
             overflow-y: auto;
+            overflow-x: hidden;
             padding: 10px;
+            /* Ensure proper scrolling on mobile */
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
+            overscroll-behavior: contain;
         }
 
         .tree-view {
@@ -133,6 +140,16 @@
             user-select: none;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Ensure anchor tags in sidebar look exactly like divs */
+        a.tree-item-content {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        a.tree-item-content:visited {
+            color: inherit;
         }
 
         .tree-item-content:hover {
@@ -257,10 +274,16 @@
         .chat-messages {
             flex: 1;
             overflow-y: auto;
+            overflow-x: hidden;
             padding: 20px;
             display: flex;
             flex-direction: column;
             gap: 15px;
+            /* Ensure proper scrolling on mobile */
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
+            /* Prevent scroll chaining to parent */
+            overscroll-behavior: contain;
         }
 
         .message {
@@ -460,6 +483,10 @@
                 width: 100vw;
                 max-width: 100vw;
                 position: relative;
+                /* Ensure proper height for scrolling */
+                height: calc(100vh - 60px);
+                display: flex;
+                flex-direction: column;
             }
             
             /* Ensure input area stays in viewport */
@@ -479,7 +506,16 @@
             
             /* Adjust chat messages to account for fixed input */
             .chat-messages {
-                padding: 15px 15px 120px 15px;
+                padding: 15px 15px 15px 15px;
+                margin-bottom: 120px; /* Space for fixed input */
+                /* Enhanced mobile scrolling */
+                -webkit-overflow-scrolling: touch;
+                touch-action: pan-y;
+                overscroll-behavior: contain;
+                /* Ensure proper flex sizing */
+                flex: 1;
+                /* Ensure scrollable area is properly sized */
+                min-height: 0; /* Allow flex shrinking */
             }
             
             /* Mobile message styling */
@@ -511,6 +547,8 @@
                 -webkit-user-select: text;
                 user-select: text;
                 -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+                /* Prevent input from affecting layout */
+                box-sizing: border-box;
             }
             
             .send-btn {
@@ -671,6 +709,7 @@
                 this.currentProject = null;
                 this.currentThread = null;
                 this.isLoading = false;
+                this.initialHashLoad = true;
                 
                 // Mobile keyboard handling
                 this.initialViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
@@ -680,6 +719,7 @@
                 this.initializeElements();
                 this.bindEvents();
                 this.initializeSidebarStates();
+                this.initializeRouting();
                 this.loadInitialData();
                 this.initializeMobileHandling();
             }
@@ -813,12 +853,99 @@
 
                 // Auto-resize textarea
                 this.messageInput.addEventListener('input', () => this.autoResizeTextarea());
+                
+                // Hash change listener for browser navigation
+                window.addEventListener('hashchange', () => this.handleHashChange());
+            }
+
+            initializeRouting() {
+                // Handle initial hash on page load
+                if (window.location.hash) {
+                    // Don't auto-navigate on first load - let loadLastSession handle it
+                    // unless there's a specific hash route
+                    const hashRoute = this.parseHashRoute(window.location.hash);
+                    if (hashRoute) {
+                        this.initialHashLoad = true;
+                    }
+                }
+            }
+
+            parseHashRoute(hash) {
+                // Parse hash format: #/project/PROJECTNAME/thread/THREADID
+                const match = hash.match(/^#\/project\/([^\/]+)\/thread\/([^\/]+)$/);
+                if (match) {
+                    return {
+                        project: decodeURIComponent(match[1]),
+                        thread: decodeURIComponent(match[2])
+                    };
+                }
+                return null;
+            }
+
+            updateUrl(project, thread) {
+                if (project && thread) {
+                    const newHash = `#/project/${encodeURIComponent(project)}/thread/${encodeURIComponent(thread)}`;
+                    if (window.location.hash !== newHash) {
+                        history.replaceState(null, '', newHash);
+                    }
+                }
+            }
+
+            async handleHashChange() {
+                const route = this.parseHashRoute(window.location.hash);
+                if (route) {
+                    // Navigate to the specified project and thread
+                    if (route.project !== this.currentProject) {
+                        await this.selectProject(route.project);
+                    }
+                    if (route.thread !== this.currentThread) {
+                        await this.selectThread(route.thread);
+                    }
+                    
+                    // Update visual selection in sidebar
+                    this.updateSidebarSelection(route.project, route.thread);
+                }
+            }
+
+            updateSidebarSelection(projectName, threadId) {
+                // Remove all previous selections
+                document.querySelectorAll('.tree-item-content.selected').forEach(el => {
+                    el.classList.remove('selected');
+                });
+                
+                // Find and select the correct thread link
+                const threadSelector = `a[data-type="thread"][data-id="${projectName}:${threadId}"]`;
+                const threadLinks = document.querySelectorAll(threadSelector);
+                threadLinks.forEach(link => {
+                    link.classList.add('selected');
+                });
+                
+                // Also ensure the project is expanded if the thread is found
+                if (threadLinks.length > 0) {
+                    const projectItem = threadLinks[0].closest('.tree-item').parentElement.closest('.tree-item');
+                    if (projectItem) {
+                        const projectIcon = projectItem.querySelector('.tree-icon');
+                        const projectChildren = projectItem.querySelector('.tree-children');
+                        if (projectIcon && projectChildren) {
+                            projectChildren.style.display = 'block';
+                            projectIcon.textContent = '▼';
+                        }
+                    }
+                }
             }
 
             async loadInitialData() {
                 try {
                     await this.loadProjects();
-                    await this.loadLastSession();
+                    
+                    // Check if there's a hash route to load
+                    const hashRoute = this.parseHashRoute(window.location.hash);
+                    if (hashRoute && this.initialHashLoad) {
+                        this.initialHashLoad = false;
+                        await this.handleHashChange();
+                    } else {
+                        await this.loadLastSession();
+                    }
                 } catch (error) {
                     console.error('Failed to load initial data:', error);
                     this.addMessage('assistant', 'Failed to connect to the backend API. Please make sure the server is running.');
@@ -892,21 +1019,31 @@
                     
                     content.addEventListener('click', (e) => {
                         e.stopPropagation();
+                        e.preventDefault();
                         this.toggleTreeItem(li, type, id);
                     });
                     content.addEventListener('touchend', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        // Prevent unwanted input focus
+                        if (document.activeElement && document.activeElement.blur) {
+                            document.activeElement.blur();
+                        }
                         this.toggleTreeItem(li, type, id);
                     });
                 } else {
                     content.addEventListener('click', (e) => {
                         e.stopPropagation();
+                        e.preventDefault();
                         this.selectTreeItem(type, id);
                     });
                     content.addEventListener('touchend', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        // Prevent unwanted input focus
+                        if (document.activeElement && document.activeElement.blur) {
+                            document.activeElement.blur();
+                        }
                         this.selectTreeItem(type, id);
                     });
                 }
@@ -918,6 +1055,61 @@
                 
                 li.appendChild(content);
                 return li;
+            }
+
+            createThreadItem(label, projectName, threadId) {
+                const li = document.createElement('li');
+                li.className = 'tree-item';
+                
+                // Create anchor tag with proper URL
+                const link = document.createElement('a');
+                link.className = 'tree-item-content';
+                link.dataset.type = 'thread';
+                link.dataset.id = `${projectName}:${threadId}`;
+                link.href = `#/project/${encodeURIComponent(projectName)}/thread/${encodeURIComponent(threadId)}`;
+                link.style.cssText = 'text-decoration: none; color: inherit; display: flex; align-items: center;';
+                
+                // Add click handler that prevents default and uses our routing
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.navigateToThread(projectName, threadId);
+                });
+                
+                // Add touch handler to prevent unwanted input focus
+                link.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Prevent unwanted input focus
+                    if (document.activeElement && document.activeElement.blur) {
+                        document.activeElement.blur();
+                    }
+                    this.navigateToThread(projectName, threadId);
+                });
+                
+                const labelSpan = document.createElement('span');
+                labelSpan.className = 'tree-label';
+                labelSpan.textContent = label;
+                link.appendChild(labelSpan);
+                
+                li.appendChild(link);
+                return li;
+            }
+
+            async navigateToThread(projectName, threadId) {
+                // Update URL first
+                this.updateUrl(projectName, threadId);
+                
+                // Navigate to project and thread
+                if (projectName !== this.currentProject) {
+                    await this.selectProject(projectName);
+                }
+                if (threadId !== this.currentThread) {
+                    await this.selectThread(threadId);
+                }
+                
+                // Update visual selection
+                this.updateSidebarSelection(projectName, threadId);
             }
 
             async toggleTreeItem(li, type, id) {
@@ -946,10 +1138,10 @@
                     if (data.success) {
                         container.innerHTML = '';
                         data.threads.forEach(thread => {
-                            const threadItem = this.createTreeItem(
+                            const threadItem = this.createThreadItem(
                                 `💬 ${thread.name} (${thread.message_count})`,
-                                'thread',
-                                `${projectName}:${thread.id}`
+                                projectName,
+                                thread.id
                             );
                             container.appendChild(threadItem);
                         });
@@ -965,15 +1157,16 @@
                     el.classList.remove('selected');
                 });
                 
-                // Add selection to current item
-                event.target.closest('.tree-item-content').classList.add('selected');
+                // Add selection to current item (if event target exists)
+                if (event && event.target) {
+                    event.target.closest('.tree-item-content').classList.add('selected');
+                }
                 
                 if (type === 'project') {
                     await this.selectProject(id);
                 } else if (type === 'thread') {
                     const [projectName, threadId] = id.split(':');
-                    await this.selectProject(projectName);
-                    await this.selectThread(threadId);
+                    await this.navigateToThread(projectName, threadId);
                 }
             }
 
@@ -1001,6 +1194,11 @@
             async selectThread(threadId) {
                 this.currentThread = threadId;
                 localStorage.setItem('lastThread', threadId);
+                
+                // Update URL if we have both project and thread
+                if (this.currentProject && threadId) {
+                    this.updateUrl(this.currentProject, threadId);
+                }
                 
                 // Enable/disable buttons
                 this.deleteThreadBtn.disabled = false;
@@ -1259,9 +1457,14 @@
             }
 
             scrollToBottom() {
-                setTimeout(() => {
+                // Use requestAnimationFrame for smoother scrolling on mobile
+                requestAnimationFrame(() => {
                     this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
-                }, 100);
+                    // Add small delay for mobile rendering
+                    setTimeout(() => {
+                        this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+                    }, 50);
+                });
             }
             
             initializeMobileHandling() {
@@ -1332,6 +1535,10 @@
                 // Store scroll position before keyboard opens
                 if (window.innerWidth <= 768) {
                     this.scrollPosition = document.documentElement.scrollTop || document.body.scrollTop;
+                    // Scroll chat to bottom when input is focused to ensure visibility
+                    setTimeout(() => {
+                        this.scrollToBottom();
+                    }, 100);
                 }
             }
             
@@ -1347,6 +1554,8 @@
                             } else {
                                 window.scrollTo(0, 0);
                             }
+                            // Ensure chat messages stay scrollable
+                            this.scrollToBottom();
                         }
                     }, 300);
                 }
@@ -1430,7 +1639,7 @@
                     const data = await response.json();
                     if (data.success) {
                         await this.loadProjects();
-                        await this.selectThread(data.thread_id);
+                        await this.navigateToThread(this.currentProject, data.thread_id);
                     } else {
                         alert(`Failed to create thread: ${data.error}`);
                     }
@@ -1455,6 +1664,9 @@
                     if (data.success) {
                         this.currentThread = null;
                         localStorage.removeItem('lastThread');
+                        
+                        // Clear URL hash
+                        history.replaceState(null, '', window.location.pathname + window.location.search);
                         
                         await this.loadProjects();
                         this.clearChat();
@@ -1490,11 +1702,16 @@
                         
                         content.addEventListener('click', (e) => {
                             e.stopPropagation();
+                            e.preventDefault();
                             this.toggleFileTreeItem(li);
                         });
                         content.addEventListener('touchend', (e) => {
                             e.preventDefault();
                             e.stopPropagation();
+                            // Prevent unwanted input focus
+                            if (document.activeElement && document.activeElement.blur) {
+                                document.activeElement.blur();
+                            }
                             this.toggleFileTreeItem(li);
                         });
                     }
@@ -1582,7 +1799,9 @@
                 if (!target.closest('.input-field') && 
                     !target.closest('button') && 
                     !target.closest('a') &&
-                    !target.closest('.tree-item-content')) {
+                    !target.closest('.tree-item-content') &&
+                    !target.closest('.chat-messages') &&
+                    !target.closest('.sidebar-content')) {
                     e.preventDefault();
                 }
             }
@@ -1592,25 +1811,30 @@
         document.body.addEventListener('touchmove', (e) => {
             const element = e.target;
             
-            // Always allow scrolling in interactive areas
+            // Always allow scrolling in chat and sidebar areas
             if (element.closest('.chat-messages') || 
                 element.closest('.sidebar-content') || 
                 element.closest('.input-field') ||
-                element.closest('.tree-view') ||
-                element.closest('button') ||
+                element.closest('.tree-view')) {
+                return; // Allow all natural scrolling
+            }
+            
+            // Allow button and link interactions
+            if (element.closest('button') ||
                 element.closest('a') ||
                 element.closest('.tree-item-content')) {
                 return; // Allow all interactions
             }
             
-            // Only prevent bounce scrolling when overlay is active AND at document edges
+            // Only prevent bounce scrolling when overlay is active AND we're sure it's needed
             const overlay = document.getElementById('overlay');
             if (overlay && overlay.classList.contains('show')) {
-                const isAtTop = document.documentElement.scrollTop === 0;
-                const isAtBottom = (window.innerHeight + document.documentElement.scrollTop) >= document.documentElement.offsetHeight;
+                const isAtTop = document.documentElement.scrollTop <= 0;
+                const isAtBottom = (window.innerHeight + document.documentElement.scrollTop) >= document.documentElement.offsetHeight - 5;
                 
-                // Only prevent at edges to avoid bounce
-                if (isAtTop || isAtBottom) {
+                // Only prevent at very specific edge cases to avoid bounce
+                if ((isAtTop && e.touches[0].pageY > e.touches[0].startY) || 
+                    (isAtBottom && e.touches[0].pageY < e.touches[0].startY)) {
                     e.preventDefault();
                 }
             }
