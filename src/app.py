@@ -1218,7 +1218,12 @@ def serve_file_viewer(project_name, file_path):
 @app.route('/')
 def serve_web_app():
     """Serve the main web application."""
-    return send_from_directory('.', 'web_app.html')
+    return send_from_directory('../web', 'index.html')
+
+@app.route('/<path:filename>')
+def serve_static_files(filename):
+    """Serve static files (CSS, JS, etc.) from the web directory."""
+    return send_from_directory('../web', filename)
 
 @app.errorhandler(404)
 def not_found(error):
@@ -1230,7 +1235,7 @@ def internal_error(error):
 
 if __name__ == '__main__':
     # Ensure data directory exists
-    os.makedirs('data/projects', exist_ok=True)
+    os.makedirs('../data/projects', exist_ok=True)
     
     # Run Flask app
     import sys

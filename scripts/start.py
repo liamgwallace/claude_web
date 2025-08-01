@@ -76,11 +76,16 @@ def main():
     browser_thread.daemon = True
     browser_thread.start()
     
-    # Start Flask app
+    # Start Flask app from src directory
     try:
-        os.system('python app.py 8000')
+        # Change to src directory and run server
+        original_dir = os.getcwd()
+        os.chdir('src')
+        os.system('python server.py 8000')
     except KeyboardInterrupt:
         print("\n👋 Shutting down Claude Web Runner")
+    finally:
+        os.chdir(original_dir)
         sys.exit(0)
 
 if __name__ == "__main__":

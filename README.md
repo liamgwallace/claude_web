@@ -26,7 +26,7 @@ A modern web interface for interacting with Claude Code through projects and thr
 
 2. **Start the Application**
    ```bash
-   python start.py
+   python scripts/start.py
    ```
 
 3. **Open Your Browser**
@@ -67,38 +67,58 @@ A modern web interface for interacting with Claude Code through projects and thr
 
 ## Architecture
 
-This is a **single-service web application** that combines both backend API and frontend in one Flask server.
+This is a **single-service web application** with a clean separation of concerns:
+
+- **Backend** (`src/`): Flask API server with Claude CLI integration
+- **Frontend** (`web/`): Modern HTML/CSS/JS with modular structure
+- **Scripts** (`scripts/`): Utility and startup scripts
 
 ### Services & Ports
-- **Main Application**: `start.py` → Runs Flask on **port 8000**
-  - **Backend API**: Flask REST API endpoints (`app.py`)
-  - **Frontend**: Static HTML/CSS/JS served from Flask (`web_app.html`)
+- **Main Application**: `scripts/start.py` → Runs Flask on **port 8000**
+  - **Backend API**: Flask REST API endpoints (`src/app.py`)
+  - **Frontend**: Modular HTML/CSS/JS served from `web/` directory
   - **URL**: http://localhost:8000 (both API and web interface)
 
 ### Project Structure
 ```
 claude_web/
-├── start.py            # Main startup script (launches Flask on port 8000)
-├── app.py              # Flask API backend + static file serving
-├── claude_wrapper.py   # Claude CLI integration with session management
-├── web_app.html       # Single-page web application (HTML/CSS/JS)
-├── test_api.py        # API testing client
-├── requirements.txt   # Python dependencies
-└── data/
-    └── projects/      # Project working directories
-        ├── project-1/ # Individual project folder (Claude workspace)
-        │   ├── <generated files by Claude>
-        │   └── .threads/    # Thread metadata storage
-        │       ├── thread-1.json
-        │       └── threads.json
-        └── project-2/
+├── scripts/
+│   ├── start.py            # Main startup script (launches Flask on port 8000)
+│   └── test_api.py         # API testing client
+├── src/                    # Backend source code
+│   ├── __init__.py         # Package marker
+│   ├── app.py              # Flask API backend
+│   ├── claude_wrapper.py   # Claude CLI integration with session management
+│   └── server.py           # Server startup logic
+├── web/                    # Frontend assets
+│   ├── index.html          # Main web application
+│   ├── css/
+│   │   └── styles.css      # Application styles
+│   └── js/
+│       └── app.js          # Application JavaScript
+├── tests/                  # Test files (future)
+│   └── __init__.py
+├── data/                   # Data storage
+│   └── projects/           # Project working directories
+│       ├── project-1/      # Individual project folder (Claude workspace)
+│       │   ├── <generated files by Claude>
+│       │   └── .threads/   # Thread metadata storage
+│       │       ├── thread-1.json
+│       │       └── threads.json
+│       └── project-2/
+├── requirements.txt        # Python dependencies
+├── README.md              # This file
+├── CLAUDE.md              # Claude Code instructions
+├── CONTRIBUTING.md        # Contribution guidelines
+└── LICENSE               # Project license
 ```
 
 ### Key Components
-1. **Flask Backend** (`app.py`): REST API + serves static HTML
-2. **Claude Integration** (`claude_wrapper.py`): Session management with CLI
-3. **Web Frontend** (`web_app.html`): Complete SPA with chat UI
-4. **Startup Script** (`start.py`): Dependency checks + launches Flask
+1. **Flask Backend** (`src/app.py`): REST API + serves static files
+2. **Claude Integration** (`src/claude_wrapper.py`): Session management with CLI
+3. **Web Frontend** (`web/`): Modular HTML/CSS/JS structure
+4. **Startup Script** (`scripts/start.py`): Dependency checks + launches Flask
+5. **Server Module** (`src/server.py`): Server configuration and startup
 
 ## Troubleshooting
 
@@ -220,7 +240,10 @@ pip install -r requirements.txt
 
 # Run in development mode
 export FLASK_DEBUG=1
-python start.py
+python scripts/start.py
+
+# Or run server directly from src directory
+cd src && python server.py 8000 --debug
 ```
 
 ### Contributing Guidelines

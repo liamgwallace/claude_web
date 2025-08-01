@@ -1,0 +1,36 @@
+{
+  "model": "claude-3-5-sonnet-20241022",
+  "max_tokens": 4096,
+  "temperature": 0.1,
+  "tools": {
+    "bash": {
+      "enabled": true,
+      "timeout": 120000
+    },
+    "edit": {
+      "enabled": true
+    },
+    "read": {
+      "enabled": true
+    },
+    "write": {
+      "enabled": true
+    },
+    "glob": {
+      "enabled": true
+    },
+    "grep": {
+      "enabled": true
+    }
+  },
+  "project": {
+    "name": "{{PROJECT_NAME}}",
+    "description": "{{PROJECT_DESCRIPTION}}",
+    "created": "{{CREATION_DATE}}"
+  },
+  "coding_standards": {
+    "prefer_editing_over_creating": true,
+    "add_comments": false,
+    "follow_existing_patterns": true
+  }
+}

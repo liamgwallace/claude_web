@@ -1,0 +1,710 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    height: 100vh;
+    background: #f8f9fa;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header */
+.header {
+    background: #2c3e50;
+    color: white;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 40;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.sidebar-toggle {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 4px;
+    transition: background 0.2s;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.sidebar-toggle:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+.header-title {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.header-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+}
+
+/* Main Container - CSS Grid Layout */
+.main-container {
+    flex: 1;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "left-sidebar chat-area right-sidebar";
+    position: relative;
+    overflow: hidden;
+    /* Ensure proper mobile behavior */
+    touch-action: pan-x pan-y;
+    transition: grid-template-columns 0.3s ease;
+    width: 100%;
+    min-height: 0;
+}
+
+/* Left Sidebar - Grid-based with coordinated responsive behavior */
+.left-sidebar {
+    grid-area: left-sidebar;
+    width: 300px;
+    min-width: 300px;
+    background: white;
+    border-right: 1px solid #e1e5e9;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    z-index: 20;
+    box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+    transition: width 0.3s ease, min-width 0.3s ease, transform 0.3s ease;
+    /* Ensure sidebar content and buttons stay coordinated */
+    position: relative;
+}
+
+.left-sidebar.closed {
+    width: 0;
+    min-width: 0;
+    border-right: none;
+    box-shadow: none;
+    overflow: hidden;
+}
+
+.sidebar-header {
+    padding: 20px;
+    border-bottom: 1px solid #e1e5e9;
+    background: #f8f9fa;
+}
+
+.sidebar-title {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.project-info {
+    font-size: 14px;
+    color: #6c757d;
+}
+
+.sidebar-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 10px;
+    /* Ensure proper scrolling on mobile */
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+}
+
+.tree-view {
+    list-style: none;
+}
+
+.tree-item {
+    margin: 2px 0;
+}
+
+.tree-item-content {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 0.2s;
+    user-select: none;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Ensure anchor tags in sidebar look exactly like divs */
+a.tree-item-content {
+    text-decoration: none;
+    color: inherit;
+}
+
+a.tree-item-content:visited {
+    color: inherit;
+}
+
+.tree-item-content:hover {
+    background: #f8f9fa;
+}
+
+.file-link:hover {
+    background: #e3f2fd !important;
+    color: #1976d2 !important;
+}
+
+.tree-item-content.selected {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.tree-icon {
+    margin-right: 8px;
+    font-size: 14px;
+}
+
+.tree-label {
+    flex: 1;
+    font-size: 14px;
+}
+
+.tree-children {
+    margin-left: 20px;
+    list-style: none;
+}
+
+.sidebar-footer {
+    border-top: 1px solid #e1e5e9;
+    padding: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    /* Ensure footer coordinates with sidebar behavior */
+    transition: all 0.3s ease;
+    background: inherit;
+    position: relative;
+    z-index: inherit;
+}
+
+.sidebar-btn {
+    flex: 1;
+    min-width: 120px;
+    padding: 8px 12px;
+    border: 1px solid #dee2e6;
+    background: white;
+    color: #495057;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.sidebar-btn:hover {
+    background: #f8f9fa;
+    border-color: #adb5bd;
+}
+
+.sidebar-btn.primary {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.sidebar-btn.primary:hover {
+    background: #0056b3;
+}
+
+.sidebar-btn.danger {
+    background: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}
+
+.sidebar-btn.danger:hover {
+    background: #c82333;
+}
+
+/* Right Sidebar - Grid-based */
+.right-sidebar {
+    grid-area: right-sidebar;
+    width: 0;
+    min-width: 0;
+    background: white;
+    border-left: 1px solid #e1e5e9;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    z-index: 20;
+    box-shadow: -2px 0 4px rgba(0,0,0,0.1);
+    transition: width 0.3s ease, min-width 0.3s ease;
+    overflow: hidden;
+}
+
+.right-sidebar.open {
+    width: 300px;
+    min-width: 300px;
+    border-left: 1px solid #e1e5e9;
+}
+
+/* Chat Area - Grid-based */
+.chat-area {
+    grid-area: chat-area;
+    display: flex;
+    flex-direction: column;
+    background: white;
+    min-width: 0; /* Allow flex shrinking */
+    min-height: 100%;
+    overflow: hidden;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    /* Ensure proper scrolling on mobile */
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    /* Prevent scroll chaining to parent */
+    overscroll-behavior: contain;
+}
+
+.message {
+    display: flex;
+    max-width: 80%;
+}
+
+.message.user {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+
+.message.assistant {
+    align-self: flex-start;
+}
+
+.message-bubble {
+    padding: 12px 16px;
+    border-radius: 18px;
+    max-width: 100%;
+    word-wrap: break-word;
+    line-height: 1.4;
+}
+
+.message.user .message-bubble {
+    background: #007bff;
+    color: white;
+    border-bottom-right-radius: 6px;
+}
+
+.message.assistant .message-bubble {
+    background: #f1f3f4;
+    color: #202124;
+    border-bottom-left-radius: 6px;
+}
+
+.message-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    margin: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+    flex-shrink: 0;
+}
+
+.message.user .message-avatar {
+    background: #007bff;
+}
+
+.message.assistant .message-avatar {
+    background: #34a853;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    margin: 0 20px;
+    color: #6c757d;
+    font-size: 14px;
+    font-style: italic;
+}
+
+.status-dots {
+    display: inline-flex;
+    gap: 4px;
+}
+
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #6c757d;
+    animation: pulse 1.4s infinite;
+}
+
+.status-dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.status-dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes pulse {
+    0%, 60%, 100% {
+        opacity: 0.3;
+    }
+    30% {
+        opacity: 1;
+    }
+}
+
+/* Input Area */
+.input-area {
+    border-top: 1px solid #e1e5e9;
+    padding: 20px;
+    background: white;
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    /* Ensure input area stays within chat area bounds */
+    flex-shrink: 0;
+}
+
+.input-container {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+.input-field {
+    flex: 1;
+    min-height: 88px;
+    max-height: 120px;
+    padding: 12px 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 22px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: none;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.input-field:focus {
+    border-color: #007bff;
+}
+
+.input-field::placeholder {
+    color: #9ca3af;
+}
+
+.send-btn {
+    width: 44px;
+    height: 44px;
+    border: none;
+    background: #007bff;
+    color: white;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    flex-shrink: 0;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.send-btn:hover:not(:disabled) {
+    background: #0056b3;
+}
+
+.send-btn:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    /* Ensure proper mobile layout */
+    body {
+        overflow-x: hidden;
+        /* Ensure touch events are processed */
+        touch-action: pan-y pinch-zoom;
+    }
+    
+    /* Ensure all interactive elements work on mobile */
+    button, a, .tree-item-content, input, textarea {
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+    }
+    
+    /* Mobile Grid Layout - Switch to overlay mode */
+    .main-container {
+        grid-template-columns: 1fr;
+        grid-template-areas: "chat-area";
+        width: 100%;
+        max-width: 100%;
+        /* Ensure mobile container fills viewport */
+        min-height: calc(100vh - 60px);
+    }
+    
+    /* Mobile sidebars - Coordinated responsive overlay positioning */
+    .left-sidebar {
+        position: fixed;
+        top: 60px;
+        left: 0;
+        width: 85vw; /* More reasonable width - not full screen */
+        max-width: 400px; /* Cap maximum width */
+        min-width: 280px; /* Ensure minimum usable width */
+        height: calc(100vh - 60px);
+        z-index: 30;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease, width 0.3s ease;
+        box-shadow: none;
+        /* Ensure sidebar and buttons coordinate */
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .left-sidebar:not(.closed) {
+        transform: translateX(0);
+        box-shadow: 4px 0 12px rgba(0,0,0,0.15);
+    }
+    
+    /* Ensure sidebar footer (buttons) stays coordinated */
+    .left-sidebar .sidebar-footer {
+        flex-shrink: 0; /* Prevent buttons from shrinking */
+        width: 100%; /* Match sidebar width exactly */
+        box-sizing: border-box;
+        padding: 12px;
+        gap: 8px;
+        /* Use grid for mobile to stack buttons vertically */
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* 2 columns */
+        grid-gap: 8px;
+    }
+    
+    /* Mobile sidebar buttons - improved sizing */
+    .left-sidebar .sidebar-btn {
+        min-width: 0; /* Allow flex shrinking */
+        padding: 10px 8px;
+        font-size: 11px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .right-sidebar {
+        position: fixed;
+        top: 60px;
+        right: 0;
+        width: 85vw; /* Consistent with left sidebar */
+        max-width: 400px;
+        min-width: 280px;
+        height: calc(100vh - 60px);
+        z-index: 30;
+        transform: translateX(100%);
+        transition: transform 0.3s ease, width 0.3s ease;
+        box-shadow: none;
+    }
+    
+    .right-sidebar.open {
+        transform: translateX(0);
+        box-shadow: -4px 0 12px rgba(0,0,0,0.15);
+    }
+    
+    /* Chat area takes remaining mobile layout */
+    .chat-area {
+        width: 100%;
+        max-width: 100%;
+        height: calc(100vh - 60px);
+        position: relative;
+        /* Ensure chat area is properly contained */
+        overflow: hidden;
+    }
+    
+    /* Mobile input area - improved positioning */
+    .input-area {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        padding: 12px;
+        box-sizing: border-box;
+        z-index: 15; /* Higher than chat messages but lower than sidebars */
+        border-top: 1px solid #e1e5e9;
+        background: white;
+        /* Prevent input area from being affected by keyboard */
+        max-height: 140px;
+        overflow: visible;
+    }
+    
+    /* Chat messages with proper mobile sizing and input spacing */
+    .chat-messages {
+        padding: 12px;
+        padding-bottom: 100px; /* Space for input area */
+        flex: 1;
+        min-height: 0;
+        /* Enhanced mobile scrolling with proper z-index */
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
+        overscroll-behavior: contain;
+        position: relative;
+        z-index: 5;
+        /* Ensure messages don't overlap input */
+        box-sizing: border-box;
+    }
+    
+    /* Mobile message styling */
+    .message {
+        max-width: 95%;
+    }
+    
+    .message-bubble {
+        padding: 10px 14px;
+        font-size: 14px;
+        line-height: 1.4;
+    }
+    
+    /* Mobile input styling - improved coordination */
+    .input-container {
+        gap: 8px;
+        align-items: flex-end;
+        /* Ensure input container works within fixed positioning */
+        position: relative;
+        z-index: 16;
+    }
+    
+    .input-field {
+        min-height: 44px;
+        max-height: 88px; /* Reduced max height for mobile */
+        padding: 12px 16px;
+        border-radius: 22px;
+        font-size: 16px; /* Prevents zoom on iOS */
+        -webkit-appearance: none;
+        appearance: none;
+        touch-action: manipulation;
+        /* Ensure input can receive touch focus */
+        -webkit-user-select: text;
+        user-select: text;
+        -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+        /* Prevent input from affecting layout */
+        box-sizing: border-box;
+        resize: none;
+        /* Better mobile keyboard handling */
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+    }
+    
+    .send-btn {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        /* Ensure button aligns with input */
+        flex-shrink: 0;
+    }
+    
+    /* Header adjustments */
+    .header {
+        padding: 0 15px;
+        /* Ensure header buttons work on mobile */
+        touch-action: manipulation;
+    }
+    
+    .header button {
+        touch-action: manipulation;
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    .header-title {
+        font-size: 16px;
+    }
+    
+    /* Status indicator adjustments */
+    .status-indicator {
+        margin: 0 15px;
+        padding: 6px 12px;
+    }
+}
+
+/* Overlay for mobile - Enhanced coordination */
+.overlay {
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 25; /* Between chat (15-20) and sidebars (30) */
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    touch-action: auto;
+    pointer-events: none;
+    /* Ensure overlay coordinates with responsive layout */
+    backdrop-filter: blur(1px);
+}
+
+.overlay.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+/* Prevent body scroll when overlay is active - coordinated mobile handling */
+@media (max-width: 768px) {
+    body.overlay-active {
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        height: 100vh;
+        /* Ensure input and sidebars work properly when body is fixed */
+        touch-action: none;
+    }
+    
+    /* Allow touch interaction within sidebars when overlay is active */
+    body.overlay-active .left-sidebar,
+    body.overlay-active .right-sidebar {
+        touch-action: pan-y;
+    }
+    
+    /* Ensure input area remains interactive when overlay is active */
+    body.overlay-active .input-area {
+        touch-action: manipulation;
+    }
+}
+
+/* Desktop overlay behavior */
+@media (min-width: 769px) {
+    body.overlay-active {
+        overflow: hidden;
+    }
+}

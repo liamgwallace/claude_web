@@ -1,0 +1,42 @@
+# Claude Code local settings
+.claude/settings.local.json
+
+# Common IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Dependencies and build outputs (add project-specific ones as needed)
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+dist/
+build/
+target/
