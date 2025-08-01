@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 import uuid
 from datetime import datetime
-# from template_manager import TemplateManager  # TODO: Implement if needed
+from template_manager import TemplateManager
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class ClaudeWrapper:
     def __init__(self, base_projects_dir: str = "../data/projects"):
         self.base_projects_dir = Path(base_projects_dir)
         self.base_projects_dir.mkdir(parents=True, exist_ok=True)
-        # self.template_manager = TemplateManager()  # TODO: Implement if needed
+        self.template_manager = TemplateManager()
         
     def create_project(self, project_name: str) -> str:
         """
@@ -47,11 +47,11 @@ class ClaudeWrapper:
         project_dir.mkdir(exist_ok=True)
         
         # Initialize Claude project with templates
-        # self.template_manager.initialize_claude_project(  # TODO: Implement if needed
-        #     str(project_dir), 
-        #     project_name,
-        #     f"A project created via Claude Web Interface"
-        # )
+        self.template_manager.initialize_claude_project(
+            str(project_dir), 
+            project_name,
+            f"A project created via Claude Web Interface"
+        )
         
         threads_dir = project_dir / ".threads"
         threads_dir.mkdir(exist_ok=True)

@@ -16,6 +16,8 @@ A modern web interface for interacting with Claude Code through projects and thr
 - 🔄 **Session Persistence** - Remembers your last project and thread
 - ⌨️ **Keyboard Shortcuts** - Ctrl+Enter to send messages
 - 📱 **Mobile Responsive** - Works on desktop and mobile devices
+- 🛠️ **Auto-Setup** - New projects automatically configured with Claude Code templates
+- ⚙️ **Custom Commands** - Pre-built slash commands (/help, /status, /test) in every project
 
 ## Quick Start
 
@@ -89,7 +91,7 @@ claude_web/
 │   ├── __init__.py         # Package marker
 │   ├── app.py              # Flask API backend
 │   ├── claude_wrapper.py   # Claude CLI integration with session management
-│   └── server.py           # Server startup logic
+│   └── template_manager.py # Claude project template system
 ├── web/                    # Frontend assets
 │   ├── index.html          # Main web application
 │   ├── css/
@@ -98,10 +100,21 @@ claude_web/
 │       └── app.js          # Application JavaScript
 ├── tests/                  # Test files (future)
 │   └── __init__.py
+├── templates/              # Claude project templates
+│   └── claude_project/     # Default Claude Code project template
+│       ├── CLAUDE.md       # Project instructions
+│       ├── .claude/        # Claude configuration
+│       │   ├── settings.json
+│       │   ├── settings.local.json
+│       │   └── commands/   # Custom slash commands
+│       ├── .gitignore      # Git ignore rules
+│       └── README.md       # Project documentation
 ├── data/                   # Data storage
 │   └── projects/           # Project working directories
 │       ├── project-1/      # Individual project folder (Claude workspace)
 │       │   ├── <generated files by Claude>
+│       │   ├── CLAUDE.md   # Auto-generated from template
+│       │   ├── .claude/    # Claude configuration
 │       │   └── .threads/   # Thread metadata storage
 │       │       ├── thread-1.json
 │       │       └── threads.json
@@ -116,9 +129,10 @@ claude_web/
 ### Key Components
 1. **Flask Backend** (`src/app.py`): REST API + serves static files
 2. **Claude Integration** (`src/claude_wrapper.py`): Session management with CLI
-3. **Web Frontend** (`web/`): Modular HTML/CSS/JS structure
-4. **Startup Script** (`scripts/start.py`): Dependency checks + launches Flask
-5. **Server Module** (`src/server.py`): Server configuration and startup
+3. **Template System** (`src/template_manager.py`): Auto-initialization of Claude projects
+4. **Web Frontend** (`web/`): Modular HTML/CSS/JS structure
+5. **Startup Script** (`scripts/start.py`): Dependency checks + launches Flask
+6. **Project Templates** (`templates/`): Claude Code configuration templates
 
 ## Troubleshooting
 
@@ -144,8 +158,20 @@ claude_web/
 
 ### File Organization
 - **Projects**: Physical directories where Claude CLI executes
+- **Templates**: Pre-configured Claude Code project templates automatically applied
 - **Threads**: JSON metadata files linking to Claude sessions
 - **Generated Files**: Created directly by Claude in project directories
+
+### Template System
+Every new project is automatically initialized with:
+- **CLAUDE.md**: Project-specific instructions for Claude
+- **.claude/settings.json**: Shared team configuration 
+- **.claude/settings.local.json**: Personal settings (git-ignored)
+- **.claude/commands/**: Custom slash commands (/help, /status, /test)
+- **.gitignore**: Proper ignore rules including Claude local settings
+- **README.md**: Project documentation template
+
+This gives each project a complete Claude Code setup - just like running `claude --init`!
 
 ### Advanced Features Implementation
 
