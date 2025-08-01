@@ -499,7 +499,7 @@ def delete_project(project_name):
         logger.error(f"Error deleting project {project_name}: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route('/<project_name>/file/<path:file_path>')
+@app.route('/view/<project_name>/file/<path:file_path>', methods=['GET'])
 def serve_file_viewer(project_name, file_path):
     """Serve the fixed file viewer for a specific project file."""
     try:
@@ -1016,7 +1016,17 @@ def serve_file_viewer(project_name, file_path):
             }})
             .then(function(response) {{
                 console.log('Save response status:', response.status);
-                return response.json();
+                if (!response.ok) {{
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                }}
+                return response.text().then(text => {{
+                    try {{
+                        return JSON.parse(text);
+                    }} catch (e) {{
+                        console.error('Invalid JSON response:', text);
+                        throw new Error('Server returned invalid JSON: ' + text.substring(0, 100));
+                    }}
+                }});
             }})
             .then(function(result) {{
                 console.log('Save result:', result);

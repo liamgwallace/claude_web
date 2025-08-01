@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
     <title>Claude Web Runner</title>
     <style>
         * {
@@ -28,7 +28,7 @@
             align-items: center;
             padding: 0 20px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            z-index: 100;
+            z-index: 40;
         }
 
         .header-left {
@@ -65,33 +65,44 @@
             align-items: center;
         }
 
-        /* Main Container */
+        /* Main Container - CSS Grid Layout */
         .main-container {
             flex: 1;
-            display: flex;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            grid-template-areas: "left-sidebar chat-area right-sidebar";
             position: relative;
             overflow: hidden;
             /* Ensure proper mobile behavior */
             touch-action: pan-x pan-y;
+            transition: grid-template-columns 0.3s ease;
+            width: 100%;
+            min-height: 0;
         }
 
-        /* Left Sidebar */
+        /* Left Sidebar - Grid-based with coordinated responsive behavior */
         .left-sidebar {
+            grid-area: left-sidebar;
             width: 300px;
+            min-width: 300px;
             background: white;
             border-right: 1px solid #e1e5e9;
             display: flex;
             flex-direction: column;
-            transform: translateX(0);
-            transition: transform 0.3s ease;
-            position: absolute;
             height: 100%;
-            z-index: 50;
+            z-index: 20;
             box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+            transition: width 0.3s ease, min-width 0.3s ease, transform 0.3s ease;
+            /* Ensure sidebar content and buttons stay coordinated */
+            position: relative;
         }
 
         .left-sidebar.closed {
-            transform: translateX(-100%);
+            width: 0;
+            min-width: 0;
+            border-right: none;
+            box-shadow: none;
+            overflow: hidden;
         }
 
         .sidebar-header {
@@ -187,6 +198,11 @@
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
+            /* Ensure footer coordinates with sidebar behavior */
+            transition: all 0.3s ease;
+            background: inherit;
+            position: relative;
+            z-index: inherit;
         }
 
         .sidebar-btn {
@@ -229,46 +245,37 @@
             background: #c82333;
         }
 
-        /* Right Sidebar */
+        /* Right Sidebar - Grid-based */
         .right-sidebar {
-            width: 300px;
+            grid-area: right-sidebar;
+            width: 0;
+            min-width: 0;
             background: white;
             border-left: 1px solid #e1e5e9;
             display: flex;
             flex-direction: column;
-            transform: translateX(100%);
-            transition: transform 0.3s ease;
-            position: absolute;
-            right: 0;
             height: 100%;
-            z-index: 50;
+            z-index: 20;
             box-shadow: -2px 0 4px rgba(0,0,0,0.1);
+            transition: width 0.3s ease, min-width 0.3s ease;
+            overflow: hidden;
         }
 
         .right-sidebar.open {
-            transform: translateX(0);
+            width: 300px;
+            min-width: 300px;
+            border-left: 1px solid #e1e5e9;
         }
 
-        /* Chat Area */
+        /* Chat Area - Grid-based */
         .chat-area {
-            flex: 1;
+            grid-area: chat-area;
             display: flex;
             flex-direction: column;
             background: white;
-            transition: margin 0.3s ease;
-        }
-
-        .chat-area {
-            margin-left: 0;
+            min-width: 0; /* Allow flex shrinking */
             min-height: 100%;
-        }
-        
-        .chat-area.left-open {
-            margin-left: 300px;
-        }
-
-        .chat-area.right-open {
-            margin-right: 300px;
+            overflow: hidden;
         }
 
         .chat-messages {
@@ -390,7 +397,9 @@
             background: white;
             position: sticky;
             bottom: 0;
-            z-index: 30;
+            z-index: 10;
+            /* Ensure input area stays within chat area bounds */
+            flex-shrink: 0;
         }
 
         .input-container {
@@ -462,60 +471,122 @@
                 -webkit-tap-highlight-color: rgba(0,0,0,0.1);
             }
             
+            /* Mobile Grid Layout - Switch to overlay mode */
             .main-container {
-                width: 100vw;
-                max-width: 100vw;
+                grid-template-columns: 1fr;
+                grid-template-areas: "chat-area";
+                width: 100%;
+                max-width: 100%;
+                /* Ensure mobile container fills viewport */
+                min-height: calc(100vh - 60px);
             }
             
-            /* Full-width sidebars on mobile */
-            .left-sidebar, .right-sidebar {
-                width: 100vw;
-                max-width: 100vw;
+            /* Mobile sidebars - Coordinated responsive overlay positioning */
+            .left-sidebar {
                 position: fixed;
                 top: 60px;
+                left: 0;
+                width: 85vw; /* More reasonable width - not full screen */
+                max-width: 400px; /* Cap maximum width */
+                min-width: 280px; /* Ensure minimum usable width */
                 height: calc(100vh - 60px);
-            }
-            
-            /* Chat area takes full width when sidebars closed */
-            .chat-area {
-                margin-left: 0 !important;
-                margin-right: 0 !important;
-                width: 100vw;
-                max-width: 100vw;
-                position: relative;
-                /* Ensure proper height for scrolling */
-                height: calc(100vh - 60px);
+                z-index: 30;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease, width 0.3s ease;
+                box-shadow: none;
+                /* Ensure sidebar and buttons coordinate */
                 display: flex;
                 flex-direction: column;
             }
             
-            /* Ensure input area stays in viewport */
-            .input-area {
+            .left-sidebar:not(.closed) {
+                transform: translateX(0);
+                box-shadow: 4px 0 12px rgba(0,0,0,0.15);
+            }
+            
+            /* Ensure sidebar footer (buttons) stays coordinated */
+            .left-sidebar .sidebar-footer {
+                flex-shrink: 0; /* Prevent buttons from shrinking */
+                width: 100%; /* Match sidebar width exactly */
+                box-sizing: border-box;
+                padding: 12px;
+                gap: 8px;
+                /* Use grid for mobile to stack buttons vertically */
+                display: grid;
+                grid-template-columns: 1fr 1fr; /* 2 columns */
+                grid-gap: 8px;
+            }
+            
+            /* Mobile sidebar buttons - improved sizing */
+            .left-sidebar .sidebar-btn {
+                min-width: 0; /* Allow flex shrinking */
+                padding: 10px 8px;
+                font-size: 11px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            
+            .right-sidebar {
                 position: fixed;
+                top: 60px;
+                right: 0;
+                width: 85vw; /* Consistent with left sidebar */
+                max-width: 400px;
+                min-width: 280px;
+                height: calc(100vh - 60px);
+                z-index: 30;
+                transform: translateX(100%);
+                transition: transform 0.3s ease, width 0.3s ease;
+                box-shadow: none;
+            }
+            
+            .right-sidebar.open {
+                transform: translateX(0);
+                box-shadow: -4px 0 12px rgba(0,0,0,0.15);
+            }
+            
+            /* Chat area takes remaining mobile layout */
+            .chat-area {
+                width: 100%;
+                max-width: 100%;
+                height: calc(100vh - 60px);
+                position: relative;
+                /* Ensure chat area is properly contained */
+                overflow: hidden;
+            }
+            
+            /* Mobile input area - improved positioning */
+            .input-area {
+                position: absolute;
                 bottom: 0;
                 left: 0;
                 right: 0;
-                width: 100vw;
-                max-width: 100vw;
-                padding: 15px;
+                width: 100%;
+                padding: 12px;
                 box-sizing: border-box;
-                z-index: 60;
+                z-index: 15; /* Higher than chat messages but lower than sidebars */
                 border-top: 1px solid #e1e5e9;
                 background: white;
+                /* Prevent input area from being affected by keyboard */
+                max-height: 140px;
+                overflow: visible;
             }
             
-            /* Adjust chat messages to account for fixed input */
+            /* Chat messages with proper mobile sizing and input spacing */
             .chat-messages {
-                padding: 15px 15px 15px 15px;
-                margin-bottom: 120px; /* Space for fixed input */
-                /* Enhanced mobile scrolling */
+                padding: 12px;
+                padding-bottom: 100px; /* Space for input area */
+                flex: 1;
+                min-height: 0;
+                /* Enhanced mobile scrolling with proper z-index */
                 -webkit-overflow-scrolling: touch;
                 touch-action: pan-y;
                 overscroll-behavior: contain;
-                /* Ensure proper flex sizing */
-                flex: 1;
-                /* Ensure scrollable area is properly sized */
-                min-height: 0; /* Allow flex shrinking */
+                position: relative;
+                z-index: 5;
+                /* Ensure messages don't overlap input */
+                box-sizing: border-box;
             }
             
             /* Mobile message styling */
@@ -529,16 +600,20 @@
                 line-height: 1.4;
             }
             
-            /* Mobile input styling */
+            /* Mobile input styling - improved coordination */
             .input-container {
                 gap: 8px;
+                align-items: flex-end;
+                /* Ensure input container works within fixed positioning */
+                position: relative;
+                z-index: 16;
             }
             
             .input-field {
                 min-height: 44px;
-                max-height: 100px;
-                padding: 10px 14px;
-                border-radius: 20px;
+                max-height: 88px; /* Reduced max height for mobile */
+                padding: 12px 16px;
+                border-radius: 22px;
                 font-size: 16px; /* Prevents zoom on iOS */
                 -webkit-appearance: none;
                 appearance: none;
@@ -549,12 +624,18 @@
                 -webkit-tap-highlight-color: rgba(0,0,0,0.1);
                 /* Prevent input from affecting layout */
                 box-sizing: border-box;
+                resize: none;
+                /* Better mobile keyboard handling */
+                -webkit-transform: translateZ(0);
+                transform: translateZ(0);
             }
             
             .send-btn {
-                width: 40px;
-                height: 40px;
-                min-width: 40px;
+                width: 44px;
+                height: 44px;
+                min-width: 44px;
+                /* Ensure button aligns with input */
+                flex-shrink: 0;
             }
             
             /* Header adjustments */
@@ -581,31 +662,58 @@
             }
         }
 
-        /* Overlay for mobile */
+        /* Overlay for mobile - Enhanced coordination */
         .overlay {
             position: fixed;
             top: 60px;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 45;
+            background: rgba(0,0,0,0.4);
+            z-index: 25; /* Between chat (15-20) and sidebars (30) */
             opacity: 0;
             visibility: hidden;
             transition: all 0.3s ease;
             touch-action: auto;
-            /* Allow all touch interactions on overlay */
+            pointer-events: none;
+            /* Ensure overlay coordinates with responsive layout */
+            backdrop-filter: blur(1px);
         }
 
         .overlay.show {
             opacity: 1;
             visibility: visible;
+            pointer-events: auto;
         }
         
-        /* Prevent body scroll when overlay is active - less aggressive */
-        body.overlay-active {
-            overflow: hidden;
-            /* Removed position: fixed as it can interfere with touch events */
+        /* Prevent body scroll when overlay is active - coordinated mobile handling */
+        @media (max-width: 768px) {
+            body.overlay-active {
+                overflow: hidden;
+                position: fixed;
+                width: 100%;
+                height: 100vh;
+                /* Ensure input and sidebars work properly when body is fixed */
+                touch-action: none;
+            }
+            
+            /* Allow touch interaction within sidebars when overlay is active */
+            body.overlay-active .left-sidebar,
+            body.overlay-active .right-sidebar {
+                touch-action: pan-y;
+            }
+            
+            /* Ensure input area remains interactive when overlay is active */
+            body.overlay-active .input-area {
+                touch-action: manipulation;
+            }
+        }
+        
+        /* Desktop overlay behavior */
+        @media (min-width: 769px) {
+            body.overlay-active {
+                overflow: hidden;
+            }
         }
     </style>
 </head>
@@ -722,6 +830,11 @@
                 this.initializeRouting();
                 this.loadInitialData();
                 this.initializeMobileHandling();
+                
+                // Ensure mobile layout is properly set up
+                if (window.innerWidth <= 768) {
+                    setTimeout(() => this.adjustMobileInputPosition(), 100);
+                }
             }
 
             initializeElements() {
@@ -759,40 +872,57 @@
                     // Mobile: both sidebars closed by default
                     this.leftSidebar.classList.add('closed');
                     this.rightSidebar.classList.remove('open');
-                    this.chatArea.classList.remove('left-open');
-                    this.chatArea.classList.remove('right-open');
                 } else {
                     // Desktop: left sidebar open by default
                     this.leftSidebar.classList.remove('closed');
                     this.rightSidebar.classList.remove('open');
-                    this.chatArea.classList.add('left-open');
-                    this.chatArea.classList.remove('right-open');
                 }
                 
-                // Handle window resize
+                // Handle window resize with debouncing
+                let resizeTimeout;
                 window.addEventListener('resize', () => {
-                    if (window.innerWidth <= 768) {
-                        // Switching to mobile
-                        if (this.overlay.classList.contains('show')) {
-                            // Keep overlay active if sidebar was open
-                            document.body.classList.add('overlay-active');
-                        }
-                        this.chatArea.classList.remove('left-open');
-                        this.chatArea.classList.remove('right-open');
-                    } else {
-                        // Switching to desktop
-                        this.overlay.classList.remove('show');
-                        document.body.classList.remove('overlay-active');
-                        
-                        // Restore desktop layout based on sidebar states
-                        if (!this.leftSidebar.classList.contains('closed')) {
-                            this.chatArea.classList.add('left-open');
-                        }
-                        if (this.rightSidebar.classList.contains('open')) {
-                            this.chatArea.classList.add('right-open');
-                        }
-                    }
+                    clearTimeout(resizeTimeout);
+                    resizeTimeout = setTimeout(() => {
+                        this.handleResponsiveLayout();
+                    }, 150);
                 });
+            }
+            
+            handleResponsiveLayout() {
+                if (window.innerWidth <= 768) {
+                    // Switching to mobile - ensure coordinated behavior
+                    if (!this.overlay.classList.contains('show')) {
+                        document.body.classList.remove('overlay-active');
+                    }
+                    // Ensure input area positioning is correct for mobile
+                    this.adjustMobileInputPosition();
+                } else {
+                    // Switching to desktop - always close overlay and reset mobile adjustments
+                    this.overlay.classList.remove('show');
+                    document.body.classList.remove('overlay-active');
+                    this.resetDesktopLayout();
+                }
+            }
+            
+            adjustMobileInputPosition() {
+                // Ensure input area doesn't overlap with content on mobile
+                if (window.innerWidth <= 768) {
+                    const inputArea = document.querySelector('.input-area');
+                    const chatMessages = document.querySelector('.chat-messages');
+                    if (inputArea && chatMessages) {
+                        // Ensure proper spacing for mobile input
+                        const inputHeight = inputArea.offsetHeight;
+                        chatMessages.style.paddingBottom = Math.max(inputHeight + 20, 100) + 'px';
+                    }
+                }
+            }
+            
+            resetDesktopLayout() {
+                // Reset any mobile-specific adjustments for desktop
+                const chatMessages = document.querySelector('.chat-messages');
+                if (chatMessages && window.innerWidth > 768) {
+                    chatMessages.style.paddingBottom = '0px';
+                }
             }
 
             bindEvents() {
@@ -1252,18 +1382,19 @@
                 const isClosed = this.leftSidebar.classList.contains('closed');
                 
                 if (isClosed) {
-                    // Opening sidebar
+                    // Opening sidebar - ensure coordinated behavior
                     this.leftSidebar.classList.remove('closed');
-                    if (window.innerWidth > 768) {
-                        this.chatArea.classList.add('left-open');
-                    } else {
+                    if (window.innerWidth <= 768) {
+                        // Mobile: show overlay and ensure proper coordination
                         this.overlay.classList.add('show');
                         document.body.classList.add('overlay-active');
+                        // Ensure input area remains accessible
+                        this.adjustMobileInputPosition();
                     }
+                    // Desktop: Grid layout handles positioning automatically
                 } else {
                     // Closing sidebar
                     this.leftSidebar.classList.add('closed');
-                    this.chatArea.classList.remove('left-open');
                     if (window.innerWidth <= 768) {
                         this.overlay.classList.remove('show');
                         document.body.classList.remove('overlay-active');
@@ -1275,17 +1406,19 @@
                 const isOpen = this.rightSidebar.classList.contains('open');
                 
                 if (!isOpen) {
-                    // Opening sidebar
+                    // Opening sidebar - ensure coordinated behavior
                     this.rightSidebar.classList.add('open');
-                    this.chatArea.classList.add('right-open');
                     if (window.innerWidth <= 768) {
+                        // Mobile: show overlay and ensure proper coordination
                         this.overlay.classList.add('show');
                         document.body.classList.add('overlay-active');
+                        // Ensure input area remains accessible
+                        this.adjustMobileInputPosition();
                     }
+                    // Desktop: Grid layout handles positioning automatically
                 } else {
                     // Closing sidebar
                     this.rightSidebar.classList.remove('open');
-                    this.chatArea.classList.remove('right-open');
                     if (window.innerWidth <= 768) {
                         this.overlay.classList.remove('show');
                         document.body.classList.remove('overlay-active');
@@ -1296,8 +1429,6 @@
             closeSidebars() {
                 this.leftSidebar.classList.add('closed');
                 this.rightSidebar.classList.remove('open');
-                this.chatArea.classList.remove('left-open');
-                this.chatArea.classList.remove('right-open');
                 this.overlay.classList.remove('show');
                 document.body.classList.remove('overlay-active');
             }
@@ -1320,7 +1451,13 @@
 
             autoResizeTextarea() {
                 this.messageInput.style.height = 'auto';
-                this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, 120) + 'px';
+                const maxHeight = window.innerWidth <= 768 ? 88 : 120;
+                this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, maxHeight) + 'px';
+                
+                // Adjust mobile input positioning when textarea size changes
+                if (window.innerWidth <= 768) {
+                    setTimeout(() => this.adjustMobileInputPosition(), 50);
+                }
             }
 
             async sendMessage() {
@@ -1726,7 +1863,7 @@
                     // File - use proper URL link that opens in new tab
                     const link = document.createElement('a');
                     link.className = 'tree-item-content file-link';
-                    link.href = `${this.apiBase}/${this.currentProject}/file/${path}`;
+                    link.href = `${this.apiBase}/view/${this.currentProject}/file/${path}`;
                     link.target = '_blank';  // Open in new tab
                     link.dataset.type = type;
                     link.dataset.path = path;
