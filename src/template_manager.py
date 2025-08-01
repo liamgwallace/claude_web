@@ -13,7 +13,10 @@ logger = logging.getLogger(__name__)
 
 class TemplateManager:
     def __init__(self, templates_dir: str = "templates"):
-        self.templates_dir = Path(templates_dir)
+        # Get the absolute path to the project root (parent of src/)
+        current_dir = Path(__file__).parent  # src/
+        project_root = current_dir.parent    # project root
+        self.templates_dir = project_root / templates_dir
         self.claude_template_dir = self.templates_dir / "claude_project"
         
     def initialize_claude_project(self, project_path: str, project_name: str, 
