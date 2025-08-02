@@ -11,6 +11,8 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import logging
 import os
 import json
+import gzip
+import io
 from claude_wrapper import ClaudeWrapper
 import asyncio
 from threading import Thread
@@ -120,19 +122,109 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+# Enhanced CORS configuration for mobile browser compatibility
+CORS(app, 
+     origins=["*"],  # Allow all origins for development
+     methods=["GET", "POST", "DELETE", "OPTIONS"],
+     allow_headers=["Content-Type", "Authorization", "X-Requested-With", "User-Agent"],
+     expose_headers=["Content-Type", "Cache-Control", "X-Content-Type-Options"],
+     supports_credentials=False,
+     max_age=3600  # Cache preflight requests
+)
 
-# Configure proxy support for VS Code port forwarding
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+# Enhanced proxy support for VS Code port forwarding and mobile compatibility
+app.wsgi_app = ProxyFix(
+    app.wsgi_app, 
+    x_for=2,       # Increased for better mobile proxy handling
+    x_proto=1, 
+    x_host=1, 
+    x_prefix=1,
+    x_port=1       # Added port handling for mobile proxies
+)
+
+# Custom gzip compression for better mobile performance
+def gzip_response(response):
+    """Apply gzip compression if client supports it."""
+    try:
+        if ('gzip' in request.headers.get('Accept-Encoding', '') and 
+            response.status_code == 200 and 
+            hasattr(response, 'get_data') and
+            not response.direct_passthrough):
+            
+            # Get response data safely
+            response_data = response.get_data()
+            if len(response_data) > 500:  # Only compress files larger than 500 bytes
+                
+                # Compress the response data
+                gzipped_data = gzip.compress(response_data)
+                
+                # Update the response
+                response.set_data(gzipped_data)
+                response.headers['Content-Encoding'] = 'gzip'
+                response.headers['Content-Length'] = len(gzipped_data)
+                response.headers['Vary'] = 'Accept-Encoding'
+    except Exception as e:
+        # If compression fails, just return original response
+        app.logger.warning(f"Gzip compression failed: {e}")
+        pass
+    
+    return response
 
 # Initialize Claude wrapper
 claude_wrapper = ClaudeWrapper()
 
-# Add request logging middleware
+# Enhanced request logging middleware for mobile debugging
 @app.before_request
 def log_request():
+    user_agent = request.headers.get('User-Agent', 'Unknown')
+    is_mobile = any(mobile in user_agent.lower() for mobile in ['mobile', 'android', 'iphone', 'ipad'])
+    
     logger.info(f"Request: {request.method} {request.path} from {request.remote_addr}")
-    logger.info(f"Headers: {dict(request.headers)}")
+    logger.info(f"User-Agent: {user_agent}")
+    logger.info(f"Mobile Device: {is_mobile}")
+    logger.info(f"Accept: {request.headers.get('Accept', 'Unknown')}")
+    logger.info(f"Accept-Encoding: {request.headers.get('Accept-Encoding', 'Unknown')}")
+    
+    # Log potential mobile-specific headers
+    if is_mobile:
+        logger.info(f"Mobile Headers - X-Forwarded-For: {request.headers.get('X-Forwarded-For', 'None')}")
+        logger.info(f"Mobile Headers - X-Real-IP: {request.headers.get('X-Real-IP', 'None')}")
+        logger.info(f"Mobile Headers - Connection: {request.headers.get('Connection', 'None')}")
+
+# Mobile-specific response headers and compression middleware
+@app.after_request
+def add_mobile_headers(response):
+    """Add mobile-compatible headers to all responses and apply compression."""
+    user_agent = request.headers.get('User-Agent', '')
+    is_mobile = any(mobile in user_agent.lower() for mobile in ['mobile', 'android', 'iphone', 'ipad'])
+    
+    if is_mobile:
+        # Force no caching for HTML on mobile to prevent stale layouts
+        if response.content_type and 'text/html' in response.content_type:
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, no-transform'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+        
+        # Ensure CSS loads properly on mobile
+        if response.content_type and 'text/css' in response.content_type:
+            response.headers['Cache-Control'] = 'public, max-age=300, no-transform'  # Shorter cache for mobile CSS
+            response.headers['X-Content-Type-Options'] = 'nosniff'
+            
+        # Ensure JS loads properly on mobile
+        if response.content_type and 'javascript' in response.content_type:
+            response.headers['Cache-Control'] = 'public, max-age=300, no-transform'
+            response.headers['X-Content-Type-Options'] = 'nosniff'
+    
+    # Always add these headers for better mobile compatibility
+    response.headers['X-UA-Compatible'] = 'IE=edge'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    
+    # Apply gzip compression for text-based content
+    if response.content_type and any(content_type in response.content_type for content_type in 
+                                   ['text/', 'application/javascript', 'application/json']):
+        response = gzip_response(response)
+    
+    return response
 
 # Simple job queue for async processing
 job_queue = queue.Queue()
@@ -1218,12 +1310,68 @@ def serve_file_viewer(project_name, file_path):
 @app.route('/')
 def serve_web_app():
     """Serve the main web application."""
-    return send_from_directory('../web', 'index.html')
+    try:
+        response = send_from_directory('../web', 'index.html')
+        
+        # Enhanced headers for mobile compatibility
+        response.headers['Content-Type'] = 'text/html; charset=utf-8'
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        
+        # Mobile-specific headers
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-UA-Compatible'] = 'IE=edge'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        
+        # Force mobile browsers to use proper viewport
+        response.headers['Viewport'] = 'width=device-width, initial-scale=1.0'
+        
+        # Prevent mobile browsers from transforming content
+        response.headers['Cache-Control'] += ', no-transform'
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error serving main application: {e}")
+        return jsonify({"success": False, "error": "Application not found"}), 404
 
 @app.route('/<path:filename>')
 def serve_static_files(filename):
     """Serve static files (CSS, JS, etc.) from the web directory."""
-    return send_from_directory('../web', filename)
+    try:
+        response = send_from_directory('../web', filename)
+        
+        # Enhanced MIME types and headers for mobile compatibility
+        if filename.endswith('.css'):
+            response.headers['Content-Type'] = 'text/css; charset=utf-8'
+            response.headers['Cache-Control'] = 'public, max-age=3600'
+            # Force no transform for mobile browsers
+            response.headers['Cache-Control'] += ', no-transform'
+            # Ensure mobile browsers don't compress CSS
+            response.headers['Vary'] = 'Accept-Encoding'
+        elif filename.endswith('.js'):
+            response.headers['Content-Type'] = 'application/javascript; charset=utf-8'
+            response.headers['Cache-Control'] = 'public, max-age=3600'
+            response.headers['Vary'] = 'Accept-Encoding'
+        elif filename.endswith('.html'):
+            response.headers['Content-Type'] = 'text/html; charset=utf-8'
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        
+        # Add mobile-specific headers
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-UA-Compatible'] = 'IE=edge'
+        
+        # Force browsers to respect MIME types
+        if filename.endswith(('.css', '.js')):
+            response.headers['Content-Disposition'] = 'inline'
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error serving static file {filename}: {e}")
+        return jsonify({"success": False, "error": "File not found"}), 404
 
 @app.errorhandler(404)
 def not_found(error):

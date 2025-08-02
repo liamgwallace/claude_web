@@ -25,9 +25,9 @@ class ClaudeWebApp {
         this.initializeElements();
         this.bindEvents();
         
-        // Force mobile layout BEFORE other initialization if needed
+        // Ensure mobile layout classes are applied properly
         if (window.innerWidth <= 768) {
-            this.forceMobileLayout();
+            this.ensureMobileLayout();
         }
         
         this.initializeSidebarStates();
@@ -38,7 +38,7 @@ class ClaudeWebApp {
         // Ensure mobile layout is properly set up
         if (window.innerWidth <= 768) {
             setTimeout(() => {
-                this.forceMobileLayout();
+                this.ensureMobileLayout();
                 this.adjustMobileInputPosition();
             }, 100);
         }
@@ -61,6 +61,7 @@ class ClaudeWebApp {
         }, 500);
     }
 
+
     applyFallbackCSS() {
         const style = document.createElement('style');
         style.textContent = `
@@ -73,7 +74,7 @@ class ClaudeWebApp {
             .chat-area { background: white !important; }
             .message-bubble { padding: 12px 16px !important; border-radius: 18px !important; }
             .message.user .message-bubble { background: #007bff !important; color: white !important; }
-            .message.assistant .message-bubble { background: #f1f3f4 !important; color: #202124 !important; }
+            .message.assistant .message-bubble { background: #f1f3f4 !important; color: white !important; }
             .input-field { border: 1px solid #d1d5db !important; border-radius: 22px !important; padding: 12px 16px !important; }
             .send-btn { background: #007bff !important; color: white !important; border-radius: 50% !important; }
             .sidebar-btn { border: 1px solid #dee2e6 !important; background: white !important; padding: 8px 12px !important; }
@@ -121,8 +122,6 @@ class ClaudeWebApp {
             // Ensure overlay is hidden
             this.overlay.classList.remove('show');
             document.body.classList.remove('overlay-active');
-            // Force mobile layout immediately
-            this.forceMobileLayout();
             console.log('Mobile layout initialized - sidebars closed');
         } else {
             // Desktop: left sidebar open by default
@@ -141,39 +140,22 @@ class ClaudeWebApp {
         });
     }
     
-    forceMobileLayout() {
-        // Ensure mobile layout is properly applied
+    ensureMobileLayout() {
+        // Simple mobile layout helper - no inline styles
         if (window.innerWidth <= 768) {
-            const mainContainer = document.querySelector('.main-container');
-            if (mainContainer) {
-                // Force grid layout changes
-                mainContainer.style.gridTemplateColumns = '1fr';
-                mainContainer.style.gridTemplateAreas = '"chat-area"';
-                
-                // Ensure sidebars are positioned as fixed overlays
-                this.leftSidebar.style.position = 'fixed';
-                this.leftSidebar.style.transform = 'translateX(-100%)';
-                this.leftSidebar.style.zIndex = '30';
-                
-                this.rightSidebar.style.position = 'fixed';
-                this.rightSidebar.style.transform = 'translateX(100%)';
-                this.rightSidebar.style.zIndex = '30';
-                
-                // Ensure chat area takes full space
-                this.chatArea.style.width = '100%';
-                this.chatArea.style.height = 'calc(100vh - 60px)';
-                this.chatArea.style.gridArea = 'chat-area';
-            }
+            // Ensure mobile classes are applied properly
+            this.leftSidebar.classList.add('closed');
+            this.rightSidebar.classList.remove('open');
+            this.overlay.classList.remove('show');
+            document.body.classList.remove('overlay-active');
+            console.log('Mobile layout state ensured via CSS classes');
         }
     }
     
     handleResponsiveLayout() {
         if (window.innerWidth <= 768) {
             // Switching to mobile - ensure coordinated behavior
-            this.forceMobileLayout();
-            if (!this.overlay.classList.contains('show')) {
-                document.body.classList.remove('overlay-active');
-            }
+            this.ensureMobileLayout();
             // Ensure input area positioning is correct for mobile
             this.adjustMobileInputPosition();
         } else {
