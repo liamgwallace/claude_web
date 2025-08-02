@@ -1,5 +1,8 @@
 class ClaudeWebApp {
     constructor() {
+        // Check if CSS loaded properly and apply fallback if needed
+        this.checkCSSLoading();
+        
         // Detect if we're behind a proxy and set API base accordingly
         const currentPath = window.location.pathname;
         if (currentPath.includes('/proxy/')) {
@@ -21,6 +24,12 @@ class ClaudeWebApp {
         
         this.initializeElements();
         this.bindEvents();
+        
+        // Force mobile layout BEFORE other initialization if needed
+        if (window.innerWidth <= 768) {
+            this.forceMobileLayout();
+        }
+        
         this.initializeSidebarStates();
         this.initializeRouting();
         this.loadInitialData();
@@ -28,8 +37,50 @@ class ClaudeWebApp {
         
         // Ensure mobile layout is properly set up
         if (window.innerWidth <= 768) {
-            setTimeout(() => this.adjustMobileInputPosition(), 100);
+            setTimeout(() => {
+                this.forceMobileLayout();
+                this.adjustMobileInputPosition();
+            }, 100);
         }
+    }
+
+    checkCSSLoading() {
+        // Check if main CSS loaded by testing a known class
+        setTimeout(() => {
+            const testElement = document.querySelector('.header');
+            if (testElement) {
+                const computedStyle = window.getComputedStyle(testElement);
+                const backgroundColor = computedStyle.backgroundColor;
+                
+                // If header doesn't have the expected dark background, CSS didn't load
+                if (!backgroundColor || backgroundColor === 'rgba(0, 0, 0, 0)' || backgroundColor === 'transparent') {
+                    console.warn('CSS failed to load, applying fallback styles');
+                    this.applyFallbackCSS();
+                }
+            }
+        }, 500);
+    }
+
+    applyFallbackCSS() {
+        const style = document.createElement('style');
+        style.textContent = `
+            /* Emergency fallback CSS for mobile */
+            .header { background: #2c3e50 !important; color: white !important; }
+            .sidebar-toggle { background: none !important; border: none !important; color: white !important; padding: 8px !important; }
+            .header-title { font-weight: 600 !important; }
+            .left-sidebar { background: white !important; border-right: 1px solid #e1e5e9 !important; }
+            .right-sidebar { background: white !important; border-left: 1px solid #e1e5e9 !important; }
+            .chat-area { background: white !important; }
+            .message-bubble { padding: 12px 16px !important; border-radius: 18px !important; }
+            .message.user .message-bubble { background: #007bff !important; color: white !important; }
+            .message.assistant .message-bubble { background: #f1f3f4 !important; color: #202124 !important; }
+            .input-field { border: 1px solid #d1d5db !important; border-radius: 22px !important; padding: 12px 16px !important; }
+            .send-btn { background: #007bff !important; color: white !important; border-radius: 50% !important; }
+            .sidebar-btn { border: 1px solid #dee2e6 !important; background: white !important; padding: 8px 12px !important; }
+            .sidebar-btn.primary { background: #007bff !important; color: white !important; }
+            .sidebar-btn.danger { background: #dc3545 !important; color: white !important; }
+        `;
+        document.head.appendChild(style);
     }
 
     initializeElements() {
@@ -64,13 +115,20 @@ class ClaudeWebApp {
     initializeSidebarStates() {
         // Set initial sidebar states based on screen size
         if (window.innerWidth <= 768) {
-            // Mobile: both sidebars closed by default
+            // Mobile: both sidebars closed by default (force state)
             this.leftSidebar.classList.add('closed');
             this.rightSidebar.classList.remove('open');
+            // Ensure overlay is hidden
+            this.overlay.classList.remove('show');
+            document.body.classList.remove('overlay-active');
+            // Force mobile layout immediately
+            this.forceMobileLayout();
+            console.log('Mobile layout initialized - sidebars closed');
         } else {
             // Desktop: left sidebar open by default
             this.leftSidebar.classList.remove('closed');
             this.rightSidebar.classList.remove('open');
+            console.log('Desktop layout initialized');
         }
         
         // Handle window resize with debouncing
@@ -83,9 +141,36 @@ class ClaudeWebApp {
         });
     }
     
+    forceMobileLayout() {
+        // Ensure mobile layout is properly applied
+        if (window.innerWidth <= 768) {
+            const mainContainer = document.querySelector('.main-container');
+            if (mainContainer) {
+                // Force grid layout changes
+                mainContainer.style.gridTemplateColumns = '1fr';
+                mainContainer.style.gridTemplateAreas = '"chat-area"';
+                
+                // Ensure sidebars are positioned as fixed overlays
+                this.leftSidebar.style.position = 'fixed';
+                this.leftSidebar.style.transform = 'translateX(-100%)';
+                this.leftSidebar.style.zIndex = '30';
+                
+                this.rightSidebar.style.position = 'fixed';
+                this.rightSidebar.style.transform = 'translateX(100%)';
+                this.rightSidebar.style.zIndex = '30';
+                
+                // Ensure chat area takes full space
+                this.chatArea.style.width = '100%';
+                this.chatArea.style.height = 'calc(100vh - 60px)';
+                this.chatArea.style.gridArea = 'chat-area';
+            }
+        }
+    }
+    
     handleResponsiveLayout() {
         if (window.innerWidth <= 768) {
             // Switching to mobile - ensure coordinated behavior
+            this.forceMobileLayout();
             if (!this.overlay.classList.contains('show')) {
                 document.body.classList.remove('overlay-active');
             }
@@ -741,31 +826,274 @@ class ClaudeWebApp {
         poll();
     }
 
+    parseMessageContent(content) {
+        const parts = [];
+        let currentIndex = 0;
+        
+        // Regular expressions for different content types
+        const codeBlockRegex = /```(\w*)\n?([\s\S]*?)```/g;
+        const htmlInlineRegex = /`([^`\n]+)`/g;
+        
+        // Find all matches and their positions
+        const matches = [];
+        
+        // Find code blocks first (they take precedence)
+        let match;
+        while ((match = codeBlockRegex.exec(content)) !== null) {
+            matches.push({
+                type: 'code',
+                start: match.index,
+                end: match.index + match[0].length,
+                language: match[1] || '',
+                content: match[2]
+            });
+        }
+        
+        // Find HTML inline content (single backticks), but skip if inside code blocks
+        while ((match = htmlInlineRegex.exec(content)) !== null) {
+            // Check if this match is inside a code block
+            const isInsideCodeBlock = matches.some(codeMatch => 
+                match.index >= codeMatch.start && match.index < codeMatch.end
+            );
+            
+            if (!isInsideCodeBlock) {
+                matches.push({
+                    type: 'html',
+                    start: match.index,
+                    end: match.index + match[0].length,
+                    content: match[1]
+                });
+            }
+        }
+        
+        // Sort matches by start position
+        matches.sort((a, b) => a.start - b.start);
+        
+        // Extract text parts between matches
+        matches.forEach((match) => {
+            // Add text before this match
+            if (currentIndex < match.start) {
+                const textContent = content.substring(currentIndex, match.start);
+                if (textContent.trim()) {
+                    parts.push({
+                        type: 'text',
+                        content: textContent
+                    });
+                }
+            }
+            
+            // Add the match
+            parts.push(match);
+            currentIndex = match.end;
+        });
+        
+        // Add remaining text after last match
+        if (currentIndex < content.length) {
+            const textContent = content.substring(currentIndex);
+            if (textContent.trim()) {
+                parts.push({
+                    type: 'text',
+                    content: textContent
+                });
+            }
+        }
+        
+        // If no matches found, return the whole content as text
+        if (parts.length === 0) {
+            parts.push({
+                type: 'text',
+                content: content
+            });
+        }
+        
+        return parts;
+    }
+
+    sanitizeHtml(html) {
+        // Basic HTML sanitization - allows common safe tags
+        const allowedTags = {
+            'p': true, 'br': true, 'strong': true, 'b': true, 'em': true, 'i': true,
+            'u': true, 'span': true, 'div': true, 'h1': true, 'h2': true, 'h3': true,
+            'h4': true, 'h5': true, 'h6': true, 'ul': true, 'ol': true, 'li': true,
+            'a': ['href', 'target'], 'img': ['src', 'alt', 'width', 'height'],
+            'table': true, 'tr': true, 'td': true, 'th': true, 'thead': true, 'tbody': true,
+            'code': true, 'pre': true, 'blockquote': true
+        };
+        
+        // Create a temporary div to parse HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        
+        // Recursively clean the HTML
+        const cleanElement = (element) => {
+            if (element.nodeType === Node.TEXT_NODE) {
+                return element.textContent;
+            }
+            
+            if (element.nodeType !== Node.ELEMENT_NODE) {
+                return '';
+            }
+            
+            const tagName = element.tagName.toLowerCase();
+            const allowedAttributes = allowedTags[tagName];
+            
+            if (!allowedAttributes) {
+                // Tag not allowed, return text content only
+                return element.textContent;
+            }
+            
+            // Create new clean element
+            const cleanEl = document.createElement(tagName);
+            
+            // Copy allowed attributes
+            if (Array.isArray(allowedAttributes)) {
+                allowedAttributes.forEach(attr => {
+                    const attrValue = element.getAttribute(attr);
+                    if (attrValue) {
+                        // Additional security for href and src
+                        if (attr === 'href' && !attrValue.match(/^(https?:|mailto:|#)/)) {
+                            return; // Skip unsafe URLs
+                        }
+                        if (attr === 'src' && !attrValue.match(/^(https?:|data:image)/)) {
+                            return; // Skip unsafe image sources
+                        }
+                        cleanEl.setAttribute(attr, attrValue);
+                    }
+                });
+            }
+            
+            // Process children recursively
+            Array.from(element.childNodes).forEach(child => {
+                if (child.nodeType === Node.TEXT_NODE) {
+                    cleanEl.appendChild(document.createTextNode(child.textContent));
+                } else if (child.nodeType === Node.ELEMENT_NODE) {
+                    const cleanChild = cleanElement(child);
+                    if (typeof cleanChild === 'string') {
+                        cleanEl.appendChild(document.createTextNode(cleanChild));
+                    } else {
+                        cleanEl.appendChild(cleanChild);
+                    }
+                }
+            });
+            
+            return cleanEl;
+        };
+        
+        const cleanedElements = Array.from(tempDiv.childNodes).map(cleanElement);
+        const result = document.createElement('div');
+        cleanedElements.forEach(el => {
+            if (typeof el === 'string') {
+                result.appendChild(document.createTextNode(el));
+            } else {
+                result.appendChild(el);
+            }
+        });
+        
+        return result.innerHTML;
+    }
+
+    createBubble(part, sender, isFirst = false, isLast = false) {
+        const bubble = document.createElement('div');
+        bubble.className = `message-bubble ${part.type}`;
+        
+        // Add positioning classes for multiple bubbles
+        if (!isFirst && !isLast) {
+            bubble.classList.add('bubble-middle');
+        } else if (!isFirst) {
+            bubble.classList.add('bubble-last');
+        } else if (!isLast) {
+            bubble.classList.add('bubble-first');
+        }
+        
+        switch (part.type) {
+            case 'text':
+                bubble.textContent = part.content;
+                break;
+                
+            case 'html':
+                try {
+                    const sanitizedHtml = this.sanitizeHtml(part.content);
+                    bubble.innerHTML = sanitizedHtml;
+                    bubble.classList.add('html-content');
+                } catch (error) {
+                    console.warn('Failed to render HTML content:', error);
+                    bubble.textContent = part.content;
+                }
+                break;
+                
+            case 'code':
+                const preElement = document.createElement('pre');
+                const codeElement = document.createElement('code');
+                
+                if (part.language) {
+                    codeElement.className = `language-${part.language}`;
+                    preElement.classList.add('line-numbers');
+                }
+                
+                codeElement.textContent = part.content;
+                preElement.appendChild(codeElement);
+                
+                // Add language label if specified
+                if (part.language) {
+                    const langLabel = document.createElement('div');
+                    langLabel.className = 'code-language-label';
+                    langLabel.textContent = part.language;
+                    bubble.appendChild(langLabel);
+                }
+                
+                bubble.appendChild(preElement);
+                bubble.classList.add('code-content');
+                
+                // Apply syntax highlighting after DOM insertion
+                setTimeout(() => {
+                    if (window.Prism) {
+                        Prism.highlightElement(codeElement);
+                    }
+                }, 0);
+                break;
+        }
+        
+        return bubble;
+    }
+
     addMessage(sender, content, timestamp = null) {
+        // Parse the message content into different parts
+        const parts = this.parseMessageContent(content);
+        
+        // Create the main message container
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${sender}`;
-
+        
+        // Create avatar (only for the first bubble)
         const avatar = document.createElement('div');
         avatar.className = 'message-avatar';
         avatar.textContent = sender === 'user' ? 'U' : 'C';
-
-        const bubble = document.createElement('div');
-        bubble.className = 'message-bubble';
-        bubble.textContent = content;
-
-        // Add timestamp if provided
-        if (timestamp) {
-            const timeDiv = document.createElement('div');
-            timeDiv.className = 'message-timestamp';
-            timeDiv.style.cssText = 'font-size: 0.75em; color: #6c757d; margin-top: 5px; opacity: 0.7;';
-            const date = new Date(timestamp);
-            timeDiv.textContent = date.toLocaleString();
-            bubble.appendChild(timeDiv);
-        }
-
         messageDiv.appendChild(avatar);
-        messageDiv.appendChild(bubble);
-
+        
+        // Create a container for all bubbles
+        const bubblesContainer = document.createElement('div');
+        bubblesContainer.className = 'message-bubbles';
+        
+        // Create bubbles for each part
+        parts.forEach((part, index) => {
+            const isFirst = index === 0;
+            const isLast = index === parts.length - 1;
+            const bubble = this.createBubble(part, sender, isFirst, isLast);
+            
+            // Add timestamp to the last bubble if provided
+            if (timestamp && isLast) {
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'message-timestamp';
+                timeDiv.style.cssText = 'font-size: 0.75em; color: #6c757d; margin-top: 5px; opacity: 0.7;';
+                const date = new Date(timestamp);
+                timeDiv.textContent = date.toLocaleString();
+                bubble.appendChild(timeDiv);
+            }
+            
+            bubblesContainer.appendChild(bubble);
+        });
+        
+        messageDiv.appendChild(bubblesContainer);
         this.chatMessages.appendChild(messageDiv);
         this.scrollToBottom();
     }

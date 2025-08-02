@@ -68,7 +68,6 @@ body {
     overflow: hidden;
     /* Ensure proper mobile behavior */
     touch-action: pan-x pan-y;
-    transition: grid-template-columns 0.3s ease;
     width: 100%;
     min-height: 0;
 }
@@ -97,6 +96,7 @@ body {
     box-shadow: none;
     overflow: hidden;
 }
+
 
 .sidebar-header {
     padding: 20px;
@@ -289,6 +289,7 @@ a.tree-item-content:visited {
 .message {
     display: flex;
     max-width: 80%;
+    align-items: flex-start;
 }
 
 .message.user {
@@ -300,24 +301,216 @@ a.tree-item-content:visited {
     align-self: flex-start;
 }
 
+.message-bubbles {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-width: 100%;
+}
+
 .message-bubble {
     padding: 12px 16px;
     border-radius: 18px;
     max-width: 100%;
     word-wrap: break-word;
     line-height: 1.4;
+    position: relative;
 }
 
+/* Base bubble styling for user messages */
 .message.user .message-bubble {
     background: #007bff;
     color: white;
     border-bottom-right-radius: 6px;
+    align-self: flex-end;
 }
 
+/* Base bubble styling for assistant messages */
 .message.assistant .message-bubble {
     background: #f1f3f4;
     color: #202124;
     border-bottom-left-radius: 6px;
+    align-self: flex-start;
+}
+
+/* Multiple bubble positioning for user messages */
+.message.user .message-bubble.bubble-first {
+    border-bottom-right-radius: 18px;
+    border-top-right-radius: 18px;
+}
+
+.message.user .message-bubble.bubble-middle {
+    border-radius: 18px 6px 6px 18px;
+}
+
+.message.user .message-bubble.bubble-last {
+    border-radius: 18px 6px 6px 18px;
+}
+
+/* Multiple bubble positioning for assistant messages */
+.message.assistant .message-bubble.bubble-first {
+    border-bottom-left-radius: 18px;
+    border-top-left-radius: 18px;
+}
+
+.message.assistant .message-bubble.bubble-middle {
+    border-radius: 6px 18px 18px 6px;
+}
+
+.message.assistant .message-bubble.bubble-last {
+    border-radius: 6px 18px 18px 6px;
+}
+
+/* HTML content styling */
+.message-bubble.html-content {
+    border-left: 3px solid #ffc107;
+    background: #fff3cd !important;
+    color: #856404 !important;
+}
+
+.message.user .message-bubble.html-content {
+    background: #d4edda !important;
+    color: #155724 !important;
+    border-left: 3px solid #28a745;
+}
+
+.message-bubble.html-content h1,
+.message-bubble.html-content h2,
+.message-bubble.html-content h3,
+.message-bubble.html-content h4,
+.message-bubble.html-content h5,
+.message-bubble.html-content h6 {
+    margin: 0.5em 0;
+    color: inherit;
+}
+
+.message-bubble.html-content p {
+    margin: 0.5em 0;
+}
+
+.message-bubble.html-content ul,
+.message-bubble.html-content ol {
+    margin: 0.5em 0;
+    padding-left: 1.5em;
+}
+
+.message-bubble.html-content a {
+    color: #007bff;
+    text-decoration: underline;
+}
+
+.message-bubble.html-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 0.5em 0;
+}
+
+/* Code content styling */
+.message-bubble.code-content {
+    background: #2d3748 !important;
+    color: #e2e8f0 !important;
+    padding: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+}
+
+.message-bubble.code-content .code-language-label {
+    background: #4a5568;
+    color: #e2e8f0;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    border-bottom: 1px solid #2d3748;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.message-bubble.code-content pre {
+    margin: 0;
+    padding: 16px;
+    background: transparent;
+    color: inherit;
+    overflow-x: auto;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.message-bubble.code-content code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+    font-family: inherit;
+}
+
+/* Prism.js theme overrides for dark code blocks */
+.message-bubble.code-content .token.comment,
+.message-bubble.code-content .token.prolog,
+.message-bubble.code-content .token.doctype,
+.message-bubble.code-content .token.cdata {
+    color: #718096;
+}
+
+.message-bubble.code-content .token.punctuation {
+    color: #e2e8f0;
+}
+
+.message-bubble.code-content .token.property,
+.message-bubble.code-content .token.tag,
+.message-bubble.code-content .token.boolean,
+.message-bubble.code-content .token.number,
+.message-bubble.code-content .token.constant,
+.message-bubble.code-content .token.symbol,
+.message-bubble.code-content .token.deleted {
+    color: #f56565;
+}
+
+.message-bubble.code-content .token.selector,
+.message-bubble.code-content .token.attr-name,
+.message-bubble.code-content .token.string,
+.message-bubble.code-content .token.char,
+.message-bubble.code-content .token.builtin,
+.message-bubble.code-content .token.inserted {
+    color: #68d391;
+}
+
+.message-bubble.code-content .token.operator,
+.message-bubble.code-content .token.entity,
+.message-bubble.code-content .token.url,
+.message-bubble.code-content .language-css .token.string,
+.message-bubble.code-content .style .token.string {
+    color: #4fd1c7;
+}
+
+.message-bubble.code-content .token.atrule,
+.message-bubble.code-content .token.attr-value,
+.message-bubble.code-content .token.keyword {
+    color: #9f7aea;
+}
+
+.message-bubble.code-content .token.function,
+.message-bubble.code-content .token.class-name {
+    color: #fbb6ce;
+}
+
+.message-bubble.code-content .token.regex,
+.message-bubble.code-content .token.important,
+.message-bubble.code-content .token.variable {
+    color: #ed8936;
+}
+
+/* Line numbers styling for code blocks */
+.message-bubble.code-content .line-numbers .line-numbers-rows {
+    border-right: 1px solid #4a5568;
+    background: #2d3748;
+    color: #718096;
+    padding-right: 8px;
+    margin-right: 8px;
+}
+
+.message-bubble.code-content .line-numbers .line-numbers-rows > span:before {
+    color: #718096;
 }
 
 .message-avatar {
@@ -464,37 +657,54 @@ a.tree-item-content:visited {
         -webkit-tap-highlight-color: rgba(0,0,0,0.1);
     }
     
-    /* Mobile Grid Layout - Switch to overlay mode */
+    /* Mobile Grid Layout - Switch to single-column overlay mode */
     .main-container {
-        grid-template-columns: 1fr;
-        grid-template-areas: "chat-area";
-        width: 100%;
-        max-width: 100%;
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        grid-template-areas: "chat-area" !important;
+        grid-template-rows: 1fr !important;
+        width: 100% !important;
+        max-width: 100% !important;
         /* Ensure mobile container fills viewport */
-        min-height: calc(100vh - 60px);
+        min-height: calc(100vh - 60px) !important;
+        position: relative !important;
     }
     
-    /* Mobile sidebars - Coordinated responsive overlay positioning */
+    /* Mobile sidebars - Force hidden by default and overlay positioning */
     .left-sidebar {
-        position: fixed;
-        top: 60px;
-        left: 0;
-        width: 85vw; /* More reasonable width - not full screen */
-        max-width: 400px; /* Cap maximum width */
-        min-width: 280px; /* Ensure minimum usable width */
-        height: calc(100vh - 60px);
-        z-index: 30;
-        transform: translateX(-100%);
-        transition: transform 0.3s ease, width 0.3s ease;
-        box-shadow: none;
-        /* Ensure sidebar and buttons coordinate */
-        display: flex;
-        flex-direction: column;
+        /* Remove from grid layout completely on mobile */
+        position: fixed !important;
+        top: 60px !important;
+        left: 0 !important;
+        width: 85vw !important;
+        max-width: 400px !important;
+        min-width: 280px !important;
+        height: calc(100vh - 60px) !important;
+        z-index: 30 !important;
+        /* Default state: hidden off-screen */
+        transform: translateX(-100%) !important;
+        transition: transform 0.3s ease !important;
+        box-shadow: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        /* Force override any grid positioning */
+        grid-area: unset !important;
+        grid-column: unset !important;
+        grid-row: unset !important;
+        background: white !important;
+        border-right: 1px solid #e1e5e9 !important;
+        overflow: visible !important;
     }
     
+    /* Show left sidebar when explicitly not closed */
     .left-sidebar:not(.closed) {
-        transform: translateX(0);
-        box-shadow: 4px 0 12px rgba(0,0,0,0.15);
+        transform: translateX(0) !important;
+        box-shadow: 4px 0 12px rgba(0,0,0,0.15) !important;
+    }
+    
+    /* Force left sidebar closed state on mobile */
+    .left-sidebar.closed {
+        transform: translateX(-100%) !important;
     }
     
     /* Ensure sidebar footer (buttons) stays coordinated */
@@ -521,32 +731,58 @@ a.tree-item-content:visited {
     }
     
     .right-sidebar {
-        position: fixed;
-        top: 60px;
-        right: 0;
-        width: 85vw; /* Consistent with left sidebar */
-        max-width: 400px;
-        min-width: 280px;
-        height: calc(100vh - 60px);
-        z-index: 30;
-        transform: translateX(100%);
-        transition: transform 0.3s ease, width 0.3s ease;
-        box-shadow: none;
+        /* Remove from grid layout completely on mobile */
+        position: fixed !important;
+        top: 60px !important;
+        right: 0 !important;
+        width: 85vw !important;
+        max-width: 400px !important;
+        min-width: 280px !important;
+        height: calc(100vh - 60px) !important;
+        z-index: 30 !important;
+        /* Default state: hidden off-screen */
+        transform: translateX(100%) !important;
+        transition: transform 0.3s ease !important;
+        box-shadow: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        /* Force override any grid positioning */
+        grid-area: unset !important;
+        grid-column: unset !important;
+        grid-row: unset !important;
+        background: white !important;
+        border-left: 1px solid #e1e5e9 !important;
+        overflow: visible !important;
     }
     
     .right-sidebar.open {
-        transform: translateX(0);
-        box-shadow: -4px 0 12px rgba(0,0,0,0.15);
+        transform: translateX(0) !important;
+        box-shadow: -4px 0 12px rgba(0,0,0,0.15) !important;
     }
     
-    /* Chat area takes remaining mobile layout */
+    /* Force right sidebar closed by default */
+    .right-sidebar:not(.open) {
+        transform: translateX(100%) !important;
+    }
+    
+    /* Chat area takes full mobile layout */
     .chat-area {
-        width: 100%;
-        max-width: 100%;
-        height: calc(100vh - 60px);
-        position: relative;
+        /* Force chat area to occupy full grid space */
+        width: 100% !important;
+        max-width: 100% !important;
+        height: calc(100vh - 60px) !important;
+        min-height: calc(100vh - 60px) !important;
+        position: relative !important;
         /* Ensure chat area is properly contained */
-        overflow: hidden;
+        overflow: hidden !important;
+        /* Force chat area to be visible and take grid space */
+        display: flex !important;
+        flex-direction: column !important;
+        grid-area: chat-area !important;
+        grid-column: 1 !important;
+        grid-row: 1 !important;
+        background: white !important;
+        z-index: 1 !important;
     }
     
     /* Mobile input area - improved positioning */
