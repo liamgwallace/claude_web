@@ -1,15 +1,10 @@
 {
-  "user_preferences": {
-    "verbosity": "normal",
-    "auto_save": true,
-    "show_thinking": false
-  },
-  "local_overrides": {
-    "max_tokens": 4096,
-    "temperature": 0.1
-  },
-  "development": {
-    "debug_mode": false,
-    "log_level": "info"
+  "permissions": {
+    "allow": [
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": []
   }
 }
