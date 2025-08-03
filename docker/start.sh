@@ -35,6 +35,14 @@ else
     exit 1
 fi
 
+# Configure Playwright MCP
+echo "🎭 Configuring Playwright MCP..."
+if claude mcp add playwright -- npx @playwright/mcp@latest --isolated --no-sandbox --device; then
+    echo "✅ Playwright MCP configured successfully"
+else
+    echo "⚠️  Playwright MCP configuration failed - continuing without it"
+fi
+
 # Create data directory structure
 mkdir -p /app/data/projects
 
