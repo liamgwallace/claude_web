@@ -4,43 +4,62 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a simple hobby project to create a web interface for interacting with Claude Code using Chainlit. The goal is to build a straightforward MVP that allows users to chat with Claude through a web UI and view generated files without complex architecture.
+This is a simple hobby project to create a web interface for interacting with Claude Code. The goal is to build a straightforward MVP that allows users to chat with Claude through a modern web UI and view generated files without complex architecture.
 
-## Planned Architecture
+## Current Architecture
 
-Based on the PRD in `Documentation/Claude web runner prd.md`, this project will follow a simple structure:
+This project follows a clean, simple structure:
 
-- **Frontend**: Chainlit (provides chat interface out of the box)
-- **Backend**: Python with subprocess calls to Claude CLI
+- **Frontend**: Custom HTML/CSS/JS web interface (`web/` directory)
+- **Backend**: Python Flask API with subprocess calls to Claude CLI
 - **Storage**: JSON files for chat history and metadata (no database needed)
 - **Queue**: Simple Python queue for handling parallel requests
-- **File Organization**: Timestamp-based folders for each chat session
+- **File Organization**: Project-based folders for organizing chat sessions
 
 ## Current Folder Structure
 
 ```
 claude_web/
-├── app.py                    # Flask API backend
-├── claude_wrapper.py         # Claude CLI wrapper with session management
-├── test_api.py              # Interactive API test client
-├── chainlit_app.py          # Chainlit web frontend
-├── start_app.py             # Startup script for both backend and frontend
-├── .chainlit/
-│   └── config.toml          # Chainlit configuration
+├── scripts/
+│   ├── start.py              # Main startup script (launches Flask on port 8000)
+│   └── test_api.py           # API testing client
+├── src/                      # Backend source code
+│   ├── app.py                # Flask API backend
+│   ├── claude_wrapper.py     # Claude CLI wrapper with session management
+│   ├── server.py             # Alternative server entry point
+│   └── template_manager.py   # Claude project template system
+├── web/                      # Frontend assets
+│   ├── index.html            # Main web application
+│   ├── css/
+│   │   └── styles.css        # Application styles
+│   └── js/
+│       └── app.js            # Application JavaScript
+├── templates/                # Claude project templates
+│   └── claude_project/       # Default Claude Code project template
+│       ├── CLAUDE.md         # Project instructions
+│       ├── .claude/          # Claude configuration
+│       │   ├── settings.json
+│       │   ├── settings.local.json
+│       │   └── commands/     # Custom slash commands
+│       ├── .gitignore        # Git ignore rules
+│       └── README.md         # Project documentation
 ├── data/
-│   └── projects/            # Project directories
-│       ├── project-1/       # Individual project folder (Claude working directory)
-│       │   ├── <generated files and folders by Claude>
-│       │   └── .threads/    # Thread metadata
-│       │       ├── thread-1.json  # Thread with session_id, message_count
-│       │       ├── thread-2.json
-│       │       └── threads.json   # Project thread list
-│       └── project-2/       # Another project
-│           ├── <generated files and folders>
-│           └── .threads/
-├── requirements.txt
-├── README_CHAINLIT.md       # Frontend documentation
-└── Documentation/           # Claude CLI and SDK reference docs
+│   └── projects/             # Project working directories
+│       ├── project-1/        # Individual project folder (Claude workspace)
+│       │   ├── <generated files by Claude>
+│       │   ├── CLAUDE.md     # Auto-generated from template
+│       │   ├── .claude/      # Claude configuration
+│       │   └── .threads/     # Thread metadata storage
+│       │       ├── thread-1.json
+│       │       └── threads.json
+│       └── project-2/
+├── tests/                    # Test files
+├── requirements.txt          # Python dependencies
+├── README.md                 # Main documentation
+├── CLAUDE.md                 # This file
+├── CONTRIBUTING.md           # Contribution guidelines
+├── LICENSE                   # Project license
+└── Documentation/            # Claude CLI and SDK reference docs
     ├── Claude Code CLI.md
     ├── Claude Code SDK.md
     ├── Claude web runner prd.md
@@ -76,15 +95,14 @@ The project uses Claude CLI's built-in session management instead of manually st
 - **Context Preservation**: Full conversation context maintained across API calls
 - **No Manual Storage**: No need to manually store/retrieve message history
 
-## Development Tasks (from PRD)
+## Key Components
 
-1. **Read Documentation**: The Documentation folder contains Claude CLI and SDK reference info
-2. **Research Chainlit**: Do web search on Chainlit basics and save key info as markdown
-3. **Start Simple**: 
-   - Create basic Chainlit app that can send messages
-   - Add simple Claude CLI wrapper with subprocess
-   - Implement JSON storage for chat history
-   - Add basic file viewing for generated files
+1. **Flask Backend** (`src/app.py`): REST API + serves static files
+2. **Claude Integration** (`src/claude_wrapper.py`): Session management with CLI
+3. **Template System** (`src/template_manager.py`): Auto-initialization of Claude projects
+4. **Web Frontend** (`web/`): Modern HTML/CSS/JS interface
+5. **Startup Script** (`scripts/start.py`): Dependency checks + launches Flask
+6. **Project Templates** (`templates/`): Claude Code configuration templates
 
 ## File Organization Strategy
 
@@ -97,22 +115,22 @@ The project uses Claude CLI's built-in session management instead of manually st
 ## Running the Application
 
 ### Quick Start
-Use the startup script to run both backend and frontend:
+Use the startup script to run the application:
 ```bash
-python start_app.py
+python scripts/start.py
 ```
 
 ### Manual Start
 1. **Start Flask Application**:
    ```bash
-   python app.py 8000
+   cd src && python server.py 8000
    ```
    Both API and web interface will be available at http://localhost:8000
 
 ### Testing Backend Only
 Use the test client for API testing:
 ```bash
-python test_api.py
+python scripts/test_api.py
 ```
 
 ## Application Architecture
@@ -125,12 +143,13 @@ python test_api.py
 - Delete functionality
 - Job queue for async processing
 
-✅ **Frontend UI** (Chainlit)
+✅ **Frontend UI** (Custom Web Interface)
 - Project-based organization with action buttons
 - Thread management within projects
 - Real-time chat with Claude
-- File viewing and navigation
+- File viewing and navigation with syntax highlighting
 - Session state management
+- Mobile-responsive design
 
 ✅ **Integration Layer**
 - API client for frontend-backend communication
@@ -154,4 +173,4 @@ The project is **complete and functional** with both backend API and frontend UI
 4. View files created by Claude
 5. Delete projects and threads safely
 
-See `README_CHAINLIT.md` for detailed usage instructions.
+See `README.md` for detailed usage instructions and features.

@@ -71,9 +71,19 @@ ehthumbs.db
 Thumbs.db
 
 # Project specific
-data/projects/*/
+data/projects/
 !data/projects/.gitkeep
 *.log
+
+# Documentation folder (reference materials)
+Documentation/
+
+# Server process files
+src/server_pid.txt
+
+# Test files and temporary artifacts
+mobile_test.py
+web_screenshot/
 
 # Chainlit
 .chainlit/translations/

@@ -22,6 +22,9 @@ class ClaudeWebApp {
         this.keyboardOpen = false;
         this.scrollPosition = 0;
         
+        // Initialize dynamic viewport height for mobile browser UI handling
+        this.updateViewportHeight();
+        
         this.initializeElements();
         this.bindEvents();
         
@@ -42,6 +45,33 @@ class ClaudeWebApp {
                 this.adjustMobileInputPosition();
             }, 100);
         }
+        
+        // Backup initialization that runs after all content loads
+        window.addEventListener('load', () => {
+            console.log('Window load event - running backup initialization');
+            if (window.innerWidth <= 768) {
+                this.ensureMobileLayout();
+                console.log('Backup mobile layout applied on window load');
+            }
+            // Also signal that JS is fully loaded for CSS
+            if (this.leftSidebar) {
+                if (window.innerWidth > 768) {
+                    this.leftSidebar.classList.add('js-opened');
+                } else {
+                    this.leftSidebar.classList.remove('js-opened');
+                }
+            }
+        });
+    }
+    
+    updateViewportHeight() {
+        // Update CSS custom property for dynamic viewport height
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+        
+        // Also update our app-height directly for immediate effect
+        const actualHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+        document.documentElement.style.setProperty('--app-height', `${actualHeight}px`);
     }
 
     checkCSSLoading() {
@@ -114,20 +144,43 @@ class ClaudeWebApp {
     }
 
     initializeSidebarStates() {
-        // Set initial sidebar states based on screen size
-        if (window.innerWidth <= 768) {
-            // Mobile: both sidebars closed by default (force state)
-            this.leftSidebar.classList.add('closed');
-            this.rightSidebar.classList.remove('open');
-            // Ensure overlay is hidden
-            this.overlay.classList.remove('show');
-            document.body.classList.remove('overlay-active');
-            console.log('Mobile layout initialized - sidebars closed');
-        } else {
-            // Desktop: left sidebar open by default
-            this.leftSidebar.classList.remove('closed');
-            this.rightSidebar.classList.remove('open');
-            console.log('Desktop layout initialized');
+        // Add retry mechanism with element checks for mobile state
+        let attempts = 0;
+        const maxAttempts = 5;
+        
+        const ensureMobileState = () => {
+            if (window.innerWidth <= 768 && this.leftSidebar) {
+                // Mobile: both sidebars closed by default (force state)
+                this.leftSidebar.classList.add('closed');
+                this.leftSidebar.classList.remove('js-opened'); // Remove CSS fallback override
+                this.rightSidebar.classList.remove('open');
+                // Ensure overlay is hidden
+                this.overlay.classList.remove('show');
+                document.body.classList.remove('overlay-active');
+                console.log('Mobile layout initialized - sidebars closed, attempt:', attempts + 1);
+                return true; // Success
+            } else if (window.innerWidth > 768 && this.leftSidebar) {
+                // Desktop: left sidebar open by default
+                this.leftSidebar.classList.remove('closed');
+                this.leftSidebar.classList.add('js-opened'); // Signal JS is working
+                this.rightSidebar.classList.remove('open');
+                console.log('Desktop layout initialized, attempt:', attempts + 1);
+                return true; // Success
+            } else if (attempts < maxAttempts) {
+                attempts++;
+                console.warn(`Sidebar elements not ready, retry attempt ${attempts}/${maxAttempts}`);
+                setTimeout(ensureMobileState, 100);
+                return false; // Retry
+            } else {
+                console.error('Failed to initialize sidebar states after', maxAttempts, 'attempts');
+                return false; // Give up
+            }
+        };
+        
+        // Initial attempt
+        if (!ensureMobileState()) {
+            // If first attempt failed, start retry loop
+            console.log('Starting sidebar initialization retry sequence');
         }
         
         // Handle window resize with debouncing
@@ -135,20 +188,26 @@ class ClaudeWebApp {
         window.addEventListener('resize', () => {
             clearTimeout(resizeTimeout);
             resizeTimeout = setTimeout(() => {
+                this.updateViewportHeight();
                 this.handleResponsiveLayout();
             }, 150);
         });
     }
     
     ensureMobileLayout() {
-        // Simple mobile layout helper - no inline styles
+        // Enhanced mobile layout helper with reliability checks
         if (window.innerWidth <= 768) {
-            // Ensure mobile classes are applied properly
-            this.leftSidebar.classList.add('closed');
-            this.rightSidebar.classList.remove('open');
-            this.overlay.classList.remove('show');
-            document.body.classList.remove('overlay-active');
-            console.log('Mobile layout state ensured via CSS classes');
+            if (this.leftSidebar) {
+                // Ensure mobile classes are applied properly
+                this.leftSidebar.classList.add('closed');
+                this.leftSidebar.classList.remove('js-opened');
+                this.rightSidebar.classList.remove('open');
+                this.overlay.classList.remove('show');
+                document.body.classList.remove('overlay-active');
+                console.log('Mobile layout state ensured via CSS classes');
+            } else {
+                console.warn('ensureMobileLayout called but leftSidebar not available');
+            }
         }
     }
     
@@ -646,6 +705,7 @@ class ClaudeWebApp {
         if (isClosed) {
             // Opening sidebar - ensure coordinated behavior
             this.leftSidebar.classList.remove('closed');
+            this.leftSidebar.classList.add('js-opened'); // Signal JS control
             if (window.innerWidth <= 768) {
                 // Mobile: show overlay and ensure proper coordination
                 this.overlay.classList.add('show');
@@ -657,6 +717,7 @@ class ClaudeWebApp {
         } else {
             // Closing sidebar
             this.leftSidebar.classList.add('closed');
+            this.leftSidebar.classList.remove('js-opened'); // Remove JS signal for mobile CSS fallback
             if (window.innerWidth <= 768) {
                 this.overlay.classList.remove('show');
                 document.body.classList.remove('overlay-active');
@@ -690,6 +751,7 @@ class ClaudeWebApp {
 
     closeSidebars() {
         this.leftSidebar.classList.add('closed');
+        this.leftSidebar.classList.remove('js-opened'); // Remove JS signal for mobile CSS fallback
         this.rightSidebar.classList.remove('open');
         this.overlay.classList.remove('show');
         document.body.classList.remove('overlay-active');
@@ -1118,6 +1180,9 @@ class ClaudeWebApp {
                     const currentHeight = window.visualViewport.height;
                     const heightDiff = this.initialViewportHeight - currentHeight;
                     
+                    // Update dynamic viewport height for layout
+                    this.updateViewportHeight();
+                    
                     // Detect keyboard open/close
                     if (heightDiff > 150) { // Keyboard is likely open
                         if (!this.keyboardOpen) {
@@ -1149,6 +1214,9 @@ class ClaudeWebApp {
                     const currentHeight = window.innerHeight;
                     const heightDiff = initialHeight - currentHeight;
                     
+                    // Update dynamic viewport height for layout
+                    this.updateViewportHeight();
+                    
                     if (heightDiff > 150) {
                         if (!this.keyboardOpen) {
                             this.keyboardOpen = true;
@@ -1170,6 +1238,46 @@ class ClaudeWebApp {
                 
                 window.addEventListener('resize', handleResize);
             }
+            
+            // Enhanced touch scrolling for sidebar and main areas
+            this.setupEnhancedTouchScrolling();
+        }
+    }
+    
+    setupEnhancedTouchScrolling() {
+        // Add touch scrolling support to sidebar and main content
+        let startY = 0;
+        let isScrolling = false;
+        
+        const handleTouchStart = (e) => {
+            startY = e.touches[0].clientY;
+            isScrolling = false;
+        };
+        
+        const handleTouchMove = (e) => {
+            if (!isScrolling) {
+                const currentY = e.touches[0].clientY;
+                const deltaY = currentY - startY;
+                
+                // If significant vertical movement, it's a scroll
+                if (Math.abs(deltaY) > 10) {
+                    isScrolling = true;
+                    // Allow the scroll by not preventing default
+                    return;
+                }
+            }
+        };
+        
+        // Apply to body for global scroll when sidebar is open
+        document.body.addEventListener('touchstart', handleTouchStart, { passive: true });
+        document.body.addEventListener('touchmove', handleTouchMove, { passive: true });
+        
+        // Specific handling for sidebar when visible
+        if (this.leftSidebar) {
+            this.leftSidebar.addEventListener('touchstart', (e) => {
+                // Allow scrolling in sidebar content
+                e.stopPropagation();
+            }, { passive: true });
         }
     }
     
