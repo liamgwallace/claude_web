@@ -1,0 +1,59 @@
+# Version control
+.git
+.gitignore
+
+# Docker files
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Documentation
+Documentation/
+*.md
+!README.md
+
+# Environment files
+.env
+.env.*
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local data (will be mounted as volume)
+data/projects/*
+!data/projects/.gitkeep
+
+# Test files
+tests/
+mobile_test.py
+web_screenshot/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+src/server_pid.txt
+
+# Issue images
+issue_images/

@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  claude-web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - PYTHONPATH=/app
+    volumes:
+      # Mount data directory for persistence
+      - ./data:/app/data
+      # Mount for development (uncomment for dev mode)
+      # - ./src:/app/src
+      # - ./web:/app/web
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Optional: Development mode with auto-reload
+  claude-web-dev:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - PYTHONPATH=/app
+    volumes:
+      - ./data:/app/data
+      - ./src:/app/src
+      - ./web:/app/web
+      - ./templates:/app/templates
+    command: /bin/bash -c "cd /app/src && python server.py 8000 --debug"
+    profiles:
+      - dev

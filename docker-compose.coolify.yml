@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  claude-web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - FLASK_ENV=production
+      - PYTHONPATH=/app
+    volumes:
+      # Persistent data volume for projects
+      - claude-web-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      # Coolify labels for automatic deployment
+      - "coolify.managed=true"
+      - "coolify.name=claude-web"
+      - "coolify.port=8000"
+
+volumes:
+  claude-web-data:
+    driver: local

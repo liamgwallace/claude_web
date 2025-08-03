@@ -21,17 +21,44 @@ A modern web interface for interacting with Claude Code through projects and thr
 
 ## Quick Start
 
+### Option 1: Docker (Recommended)
+
+1. **Set up environment variables**
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your Claude API key
+   ```
+
+2. **Run with Docker Compose**
+   ```bash
+   docker-compose up -d
+   ```
+
+3. **Open Your Browser**
+   - Navigate to http://localhost:8000
+
+### Option 2: Local Development
+
 1. **Install Dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-2. **Start the Application**
+2. **Install Claude Code CLI**
+   ```bash
+   # macOS/Linux/WSL:
+   curl -fsSL claude.ai/install.sh | bash
+   
+   # Or with npm:
+   npm install -g @anthropic-ai/claude-code
+   ```
+
+3. **Start the Application**
    ```bash
    python scripts/start.py
    ```
 
-3. **Open Your Browser**
+4. **Open Your Browser**
    - The app will automatically open at http://localhost:8000
    - Or manually navigate to http://localhost:8000
 
@@ -250,6 +277,51 @@ GET  /status/:job_id                        # Get async job status
 - **Success**: `{"success": true, "data": {...}}`
 - **Error**: `{"success": false, "error": "message", "details": {...}}`
 - **Async**: `{"job_id": "uuid", "status": "queued"}`
+
+---
+
+## 🐳 Docker Deployment
+
+### Coolify Deployment
+
+For deployment on Coolify or similar platforms:
+
+1. **Fork or clone this repository**
+
+2. **Set up environment variables in Coolify:**
+   - `CLAUDE_API_KEY`: Your Anthropic API key from [console.anthropic.com](https://console.anthropic.com/)
+
+3. **Use the Coolify docker-compose file:**
+   ```bash
+   # Coolify will automatically use docker-compose.coolify.yml
+   # Or specify it manually:
+   docker-compose -f docker-compose.coolify.yml up -d
+   ```
+
+4. **Configure health checks:**
+   - Health check endpoint: `/health`
+   - Port: `8000`
+
+### Manual Docker Deployment
+
+```bash
+# Build the image
+docker build -t claude-web .
+
+# Run with API key
+docker run -d \
+  --name claude-web \
+  -p 8000:8000 \
+  -e CLAUDE_API_KEY=your_api_key_here \
+  -v claude-web-data:/app/data \
+  claude-web
+```
+
+### Environment Variables
+
+- **CLAUDE_API_KEY** (required): Your Anthropic API key
+- **FLASK_ENV**: `production` or `development` (default: `production`)
+- **FLASK_DEBUG**: `0` or `1` (default: `0`)
 
 ---
 
