@@ -19,6 +19,13 @@ from threading import Thread
 import queue
 import time
 
+def is_image_file(extension):
+    """Check if file extension indicates an image file."""
+    image_extensions = {
+        'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'ico', 'tiff', 'tif'
+    }
+    return extension.lower() in image_extensions
+
 def get_language_from_extension(extension):
     """Map file extensions to Prism.js language identifiers."""
     lang_map = {
@@ -122,6 +129,21 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+# Add request logging middleware for debugging external access issues
+@app.before_request
+def log_request_info():
+    if '/download' in request.path:  # Only log download requests to reduce noise
+        logger.info('=== REQUEST DEBUG ===')
+        logger.info(f'Request method: {request.method}')
+        logger.info(f'Request URL: {request.url}')
+        logger.info(f'Request path: {request.path}')
+        logger.info(f'Request args: {dict(request.args)}')
+        logger.info(f'Request remote_addr: {request.remote_addr}')
+        logger.info(f'Request user_agent: {request.headers.get("User-Agent", "Unknown")}')
+        logger.info(f'Request referer: {request.headers.get("Referer", "None")}')
+        logger.info('=== REQUEST DEBUG END ===')
+
 # Enhanced CORS configuration for mobile browser compatibility
 CORS(app, 
      origins=["*"],  # Allow all origins for development
@@ -501,6 +523,88 @@ def save_file_content(project_name, file_path):
         logger.error(f"Error saving file content for project {project_name}, file {file_path}: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route('/project/<project_name>/file/<path:file_path>/download', methods=['GET'])
+def download_file(project_name, file_path):
+    """
+    GET /project/:project_name/file/:file_path/download – Downloads the raw file content
+    """
+    logger.info(f"=== DOWNLOAD DEBUG START ===")
+    logger.info(f"Download request received")
+    logger.info(f"Request method: {request.method}")
+    logger.info(f"Request URL: {request.url}")
+    logger.info(f"Request path: {request.path}")
+    logger.info(f"Request headers: {dict(request.headers)}")
+    logger.info(f"Request remote_addr: {request.remote_addr}")
+    logger.info(f"Request host: {request.host}")
+    logger.info(f"Project name (raw): '{project_name}'")
+    logger.info(f"File path (raw): '{file_path}'")
+    logger.info(f"Project name type: {type(project_name)}")
+    logger.info(f"File path type: {type(file_path)}")
+    
+    try:
+        # Get the actual file path on disk
+        project_dir = claude_wrapper.base_projects_dir / project_name
+        target_file = project_dir / file_path
+        
+        logger.info(f"Base projects dir: {claude_wrapper.base_projects_dir}")
+        logger.info(f"Project dir: {project_dir}")
+        logger.info(f"Target file path: {target_file}")
+        logger.info(f"Project dir exists: {project_dir.exists()}")
+        logger.info(f"Target file exists: {target_file.exists()}")
+        logger.info(f"Target file is file: {target_file.is_file() if target_file.exists() else 'N/A'}")
+        
+        # Security check - ensure the file is within the project directory
+        try:
+            relative_path = target_file.resolve().relative_to(project_dir.resolve())
+            logger.info(f"Security check passed, relative path: {relative_path}")
+        except ValueError as ve:
+            logger.error(f"Security check failed: {ve}")
+            logger.error(f"Target file resolved: {target_file.resolve()}")
+            logger.error(f"Project dir resolved: {project_dir.resolve()}")
+            return jsonify({"success": False, "error": "Access denied"}), 403
+        
+        if not target_file.exists():
+            logger.error(f"File does not exist: {target_file}")
+            return jsonify({"success": False, "error": "File not found"}), 404
+            
+        if not target_file.is_file():
+            logger.error(f"Path is not a file: {target_file}")
+            return jsonify({"success": False, "error": "Path is not a file"}), 404
+        
+        # Get file info
+        file_size = target_file.stat().st_size
+        logger.info(f"File size: {file_size} bytes")
+        
+        # Determine MIME type
+        import mimetypes
+        mime_type, encoding = mimetypes.guess_type(str(target_file))
+        if mime_type is None:
+            mime_type = 'application/octet-stream'
+        
+        logger.info(f"Detected MIME type: {mime_type}")
+        logger.info(f"Detected encoding: {encoding}")
+        logger.info(f"Download filename: {target_file.name}")
+        
+        # Read file and send as download
+        from flask import send_file
+        logger.info(f"Attempting to send file with send_file()")
+        logger.info(f"=== DOWNLOAD DEBUG END ===")
+        
+        return send_file(
+            target_file, 
+            as_attachment=True, 
+            download_name=target_file.name,
+            mimetype=mime_type
+        )
+        
+    except Exception as e:
+        logger.error(f"=== DOWNLOAD ERROR ===")
+        logger.error(f"Exception type: {type(e).__name__}")
+        logger.error(f"Exception message: {str(e)}")
+        logger.error(f"Exception details:", exc_info=True)
+        logger.error(f"=== DOWNLOAD ERROR END ===")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @app.route('/status/<job_id>', methods=['GET'])
 def get_job_status(job_id):
     """
@@ -647,7 +751,66 @@ def serve_file_viewer(project_name, file_path):
             # If any error in detection, assume it's binary to be safe
             is_binary = True
         
-        if is_binary:
+        # Get file extension for image detection
+        file_extension = file_path.split('.')[-1].lower() if '.' in file_path else ''
+        
+        if is_image_file(file_extension):
+            # Handle image files - embed as data URL to bypass authentication issues
+            try:
+                # Get the actual image file data
+                project_dir = claude_wrapper.base_projects_dir / project_name
+                target_file = project_dir / file_path
+                
+                # Security check
+                target_file.resolve().relative_to(project_dir.resolve())
+                
+                if target_file.exists() and target_file.is_file():
+                    # Read the binary image data
+                    with open(target_file, 'rb') as img_file:
+                        image_data = img_file.read()
+                    
+                    # Determine MIME type based on extension
+                    mime_types = {
+                        'png': 'image/png',
+                        'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
+                        'gif': 'image/gif',
+                        'bmp': 'image/bmp',
+                        'webp': 'image/webp',
+                        'svg': 'image/svg+xml',
+                        'ico': 'image/x-icon',
+                        'tiff': 'image/tiff', 'tif': 'image/tiff'
+                    }
+                    mime_type = mime_types.get(file_extension.lower(), 'image/png')
+                    
+                    # Convert to base64 data URL
+                    import base64
+                    base64_data = base64.b64encode(image_data).decode('utf-8')
+                    data_url = f"data:{mime_type};base64,{base64_data}"
+                    actual_file_size = len(image_data)
+                    
+                    file_content = f"""
+                    <div class="image-container" style="text-align: center; padding: 20px;">
+                        <img id="main-image" src="{data_url}" 
+                             alt="{file_path}" 
+                             style="max-width: 100%; max-height: 80vh; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" 
+                             onload="this.style.display='block'; console.log('Image loaded successfully (data URL)');" 
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block'; console.error('Image failed to load (data URL)');" />
+                        <div style="display: none; color: #666; margin-top: 20px;">
+                            <p>Failed to load image</p>
+                            <p>File size: {actual_file_size} bytes</p>
+                        </div>
+                        <div style="margin-top: 15px; color: #666; font-size: 14px;">
+                            <p>{file_path}</p>
+                            <p>Image file ({actual_file_size:,} bytes)</p>
+                        </div>
+                    </div>
+                    """
+                else:
+                    file_content = "<p style='color: #666;'>Image file not found</p>"
+            except Exception as e:
+                logger.error(f"Error loading image {file_path}: {e}")
+                file_content = f"<p style='color: #666;'>Error loading image: {str(e)}</p>"
+        elif is_binary:
             file_content = f"<p style='color: #666;'>Binary file ({len(content)} bytes) - cannot display as text</p>"
         else:
             # Get language for syntax highlighting
@@ -666,13 +829,16 @@ def serve_file_viewer(project_name, file_path):
                 file_content = f'<pre style="white-space: pre-wrap; word-wrap: break-word;">{escaped_content}</pre>'
         
         # Prepare data for JavaScript (using safe JSON encoding)
-        original_content_json = json.dumps(content if not is_binary else "", ensure_ascii=False)
+        import html
+        is_image = is_image_file(file_extension)
+        original_content_json = json.dumps(content if not is_binary and not is_image else "", ensure_ascii=False)
         project_name_json = json.dumps(project_name, ensure_ascii=False)
         file_path_json = json.dumps(file_path, ensure_ascii=False)
-        escaped_content_json = json.dumps(html.escape(content) if not is_binary else "", ensure_ascii=False)
+        escaped_content_json = json.dumps(html.escape(content) if not is_binary and not is_image else "", ensure_ascii=False)
         
-        # Return enhanced HTML with editing capabilities
-        return f"""
+        # Create response with explicit HTML content type
+        from flask import Response
+        html_content = f"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -926,6 +1092,9 @@ def serve_file_viewer(project_name, file_path):
             <button id="saveBtn" class="btn success" onclick="saveFile()" style="display: none;" disabled>
                 💾 Save
             </button>
+            <button id="downloadBtn" class="btn" onclick="downloadFile()">
+                📥 Download
+            </button>
             <button class="close-btn" onclick="closeWindow()" title="Close">×</button>
         </div>
     </div>
@@ -966,27 +1135,82 @@ def serve_file_viewer(project_name, file_path):
         var projectName = {project_name_json};
         var filePath = {file_path_json};
         
+        // Check if this is an image file
+        var isImageFile = {json.dumps(is_image)};
+        
         // Initialize syntax highlighting and setup
         document.addEventListener('DOMContentLoaded', function() {{
-            console.log('File viewer loading...');
+            console.log('=== FILE VIEWER INITIALIZATION ===');
+            console.log('File viewer loading...', 'isImageFile:', isImageFile);
             
-            try {{
-                Prism.highlightAll();
-                console.log('Prism syntax highlighting applied');
-            }} catch(e) {{
-                console.log('Prism highlighting failed:', e);
+            // Add network debugging
+            if (window.fetch) {{
+                const originalFetch = window.fetch;
+                window.fetch = function(...args) {{
+                    console.log('=== FETCH REQUEST ===');
+                    console.log('Fetch args:', args);
+                    console.log('Request URL:', args[0]);
+                    console.log('Request options:', args[1]);
+                    
+                    return originalFetch.apply(this, args)
+                        .then(response => {{
+                            console.log('=== FETCH RESPONSE ===');
+                            console.log('Response URL:', response.url);
+                            console.log('Response status:', response.status);
+                            console.log('Response statusText:', response.statusText);
+                            console.log('Response headers:');
+                            for (let [key, value] of response.headers) {{
+                                console.log('  ' + key + ':', value);
+                            }}
+                            return response;
+                        }})
+                        .catch(error => {{
+                            console.error('=== FETCH ERROR ===');
+                            console.error('Fetch error:', error);
+                            console.error('Error for URL:', args[0]);
+                            throw error;
+                        }});
+                }};
+                console.log('Fetch interceptor installed');
             }}
             
-            // Set up change detection
-            var editTextarea = document.getElementById('editContent');
-            if (editTextarea) {{
-                editTextarea.addEventListener('input', function() {{
-                    hasUnsavedChanges = editTextarea.value !== originalContent;
-                    updateSaveButton();
-                }});
-                console.log('Change detection set up');
+            console.log('File viewer loading...', 'isImageFile:', isImageFile);
+            
+            if (!isImageFile) {{
+                try {{
+                    Prism.highlightAll();
+                    console.log('Prism syntax highlighting applied');
+                }} catch(e) {{
+                    console.log('Prism highlighting failed:', e);
+                }}
+                
+                // Set up change detection for text files only
+                var editTextarea = document.getElementById('editContent');
+                if (editTextarea) {{
+                    editTextarea.addEventListener('input', function() {{
+                        hasUnsavedChanges = editTextarea.value !== originalContent;
+                        updateSaveButton();
+                    }});
+                    console.log('Change detection set up');
+                }}
             }} else {{
-                console.error('Edit textarea not found');
+                console.log('Image file detected - disabling edit functionality');
+                // Hide edit controls for images
+                var editBtn = document.getElementById('editBtn');
+                var saveBtn = document.getElementById('saveBtn'); 
+                var cancelBtn = document.getElementById('cancelBtn');
+                if (editBtn) editBtn.style.display = 'none';
+                if (saveBtn) saveBtn.style.display = 'none';
+                if (cancelBtn) cancelBtn.style.display = 'none';
+                
+                // Log image URL for debugging (now using data URL)
+                var mainImage = document.getElementById('main-image');
+                if (mainImage) {{
+                    console.log('Image source type:', mainImage.src.startsWith('data:') ? 'Data URL' : 'Regular URL');
+                    if (mainImage.src.startsWith('data:')) {{
+                        console.log('Data URL length:', mainImage.src.length, 'characters');
+                    }}
+                }}
             }}
             
             // Prevent accidental page close with unsaved changes
@@ -1250,6 +1474,128 @@ def serve_file_viewer(project_name, file_path):
             showStatusMessage('Cannot close window automatically. Please close the tab manually.', 'error');
         }}
         
+        function downloadFile() {{
+            console.log('=== MAIN DOWNLOAD DEBUG START ===');
+            console.log('downloadFile called');
+            console.log('isImageFile:', isImageFile);
+            console.log('isEditMode:', isEditMode);
+            console.log('Browser:', navigator.userAgent);
+            console.log('Window location:', window.location.href);
+            
+            try {{
+                // For text files in edit mode, download the current edited content
+                if (!isImageFile && isEditMode) {{
+                    console.log('Using blob download for edited text content');
+                    var content = document.getElementById('editContent').value;
+                    var fileName = filePath.split('/').pop();
+                    console.log('Blob download - fileName:', fileName, 'content length:', content.length);
+                    
+                    var blob = new Blob([content], {{ type: 'text/plain;charset=utf-8' }});
+                    
+                    var link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = fileName;
+                    document.body.appendChild(link);
+                    
+                    console.log('Blob link href:', link.href);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(link.href);
+                    
+                    showStatusMessage('File downloaded successfully!', 'success');
+                    console.log('Blob download completed successfully');
+                }} else {{
+                    console.log('Using server API download for:', isImageFile ? 'image file' : 'text file in view mode');
+                    // For all other cases (view mode, images, binary files), use server endpoint
+                    downloadViaAPI();
+                }}
+            }} catch(error) {{
+                console.error('Main download error:', error);
+                console.error('Error stack:', error.stack);
+                showStatusMessage('Error downloading file: ' + error.message, 'error');
+            }}
+            console.log('=== MAIN DOWNLOAD DEBUG END ===');
+        }}
+        
+        function downloadViaAPI() {{
+            console.log('=== DOWNLOAD DEBUG START ===');
+            console.log('downloadViaAPI called');
+            console.log('Current URL:', window.location.href);
+            console.log('Current protocol:', window.location.protocol);
+            console.log('Current host:', window.location.host);
+            console.log('Current pathname:', window.location.pathname);
+            console.log('Project name (raw):', projectName);
+            console.log('File path (raw):', filePath);
+            console.log('Project name type:', typeof projectName);
+            console.log('File path type:', typeof filePath);
+            
+            // Use the dedicated download endpoint - properly encode the file path
+            // Use the same apiBase logic as the main app to handle proxy paths
+            var apiBase = '';
+            const currentPath = window.location.pathname;
+            if (currentPath.includes('/proxy/')) {{
+                const proxyMatch = currentPath.match(/\/proxy\/\d+/);
+                apiBase = proxyMatch ? proxyMatch[0] : '';
+            }}
+            
+            var downloadUrl = apiBase + '/project/' + encodeURIComponent(projectName) + '/file/' + filePath + '/download';
+            console.log('Download URL (relative):', downloadUrl);
+            
+            // Try absolute URL construction for external access
+            var absoluteUrl = window.location.protocol + '//' + window.location.host + downloadUrl;
+            console.log('Download URL (absolute):', absoluteUrl);
+            
+            // Create a temporary link to trigger download
+            var link = document.createElement('a');
+            link.href = downloadUrl; // Keep using relative for now
+            link.download = filePath.split('/').pop();
+            link.style.display = 'none';
+            
+            console.log('Link href before click:', link.href);
+            console.log('Link download attribute:', link.download);
+            
+            document.body.appendChild(link);
+            
+            // Add error handling for the click
+            link.addEventListener('error', function(e) {{
+                console.error('Link click error:', e);
+                showStatusMessage('Download link error: ' + e.message, 'error');
+            }});
+            
+            try {{
+                console.log('Attempting link click...');
+                link.click();
+                console.log('Link click completed');
+            }} catch(error) {{
+                console.error('Link click exception:', error);
+                showStatusMessage('Download click error: ' + error.message, 'error');
+            }}
+            
+            document.body.removeChild(link);
+            
+            // Test if we can fetch the URL directly
+            console.log('Testing direct fetch to download URL...');
+            fetch(downloadUrl, {{ method: 'HEAD' }})
+                .then(response => {{
+                    console.log('HEAD request status:', response.status);
+                    console.log('HEAD request statusText:', response.statusText);
+                    console.log('HEAD response headers:');
+                    for (let [key, value] of response.headers) {{
+                        console.log('  ' + key + ':', value);
+                    }}
+                    if (!response.ok) {{
+                        console.error('HEAD request failed:', response.status, response.statusText);
+                    }}
+                }})
+                .catch(error => {{
+                    console.error('HEAD request error:', error);
+                    showStatusMessage('Download URL test failed: ' + error.message, 'error');
+                }});
+            
+            showStatusMessage('Download started...', 'success');
+            console.log('=== DOWNLOAD DEBUG END ===');
+        }}
+        
         // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {{
             try {{
@@ -1292,6 +1638,15 @@ def serve_file_viewer(project_name, file_path):
 </html>
 """
         
+        # Return HTML response with explicit content type
+        response = Response(html_content, mimetype='text/html')
+        response.headers['Content-Type'] = 'text/html; charset=utf-8'
+        # Prevent caching to avoid MIME type confusion
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
+        
     except Exception as e:
         logger.error(f"Error serving file viewer for {project_name}/{file_path}: {e}")
         return f"""
@@ -1306,6 +1661,36 @@ def serve_file_viewer(project_name, file_path):
 </body>
 </html>
 """, 500
+
+@app.route('/image/<project_name>/<path:file_path>', methods=['GET'])
+def serve_image_file(project_name, file_path):
+    """Serve raw image files directly."""
+    try:
+        project_dir = claude_wrapper.base_projects_dir / project_name
+        if not project_dir.exists():
+            return jsonify({"success": False, "error": "Project not found"}), 404
+            
+        full_file_path = project_dir / file_path
+        
+        # Security: prevent path traversal
+        try:
+            full_file_path.resolve().relative_to(project_dir.resolve())
+        except ValueError:
+            return jsonify({"success": False, "error": "Access denied"}), 403
+        
+        if not full_file_path.exists():
+            return jsonify({"success": False, "error": "File not found"}), 404
+            
+        # Check if it's actually an image file
+        file_extension = file_path.split('.')[-1].lower() if '.' in file_path else ''
+        if not is_image_file(file_extension):
+            return jsonify({"success": False, "error": "Not an image file"}), 400
+        
+        return send_from_directory(str(project_dir), file_path)
+        
+    except Exception as e:
+        logger.error(f"Error serving image {project_name}/{file_path}: {e}")
+        return jsonify({"success": False, "error": "Failed to serve image"}), 500
 
 @app.route('/')
 def serve_web_app():
