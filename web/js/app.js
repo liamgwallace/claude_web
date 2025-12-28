@@ -677,6 +677,20 @@ class ClaudeWebApp {
         }
     }
 
+    getFileIcon(filename, type) {
+        if (type === 'directory') return '📁';
+        
+        const extension = filename.split('.').pop()?.toLowerCase() || '';
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'ico', 'tiff', 'tif'];
+        
+        if (imageExtensions.includes(extension)) {
+            return '🖼️';
+        }
+        
+        // Default file icon
+        return '📄';
+    }
+
     renderFileTree(node, container = this.fileTree, parentPath = '', isRoot = true) {
         if (container === this.fileTree) {
             container.innerHTML = '';
@@ -684,7 +698,7 @@ class ClaudeWebApp {
         
         // Skip the root project directory name in the path
         const currentPath = isRoot ? '' : (parentPath ? `${parentPath}/${node.name}` : node.name);
-        const icon = node.type === 'directory' ? '📁' : '📄';
+        const icon = this.getFileIcon(node.name, node.type);
         const item = this.createFileTreeItem(`${icon} ${node.name}`, node.type, currentPath, node.children && node.children.length > 0);
         
         if (node.children && node.children.length > 0) {

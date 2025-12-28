@@ -223,7 +223,7 @@ class ClaudeWrapper:
                 raise Exception("Claude CLI not found. Please ensure Claude CLI is installed and in PATH.")
             
             # Build base command with permissions and environment
-            base_cmd = [claude_cmd, "--dangerously-skip-permissions"]
+            base_cmd = [claude_cmd, "--dangerously-skip-permissions", "--model", "sonnet"]
             
             if session_id:
                 # Resume existing session
@@ -406,6 +406,7 @@ class ClaudeWrapper:
         """
         Get content of a specific file in the project directory.
         Returns file content or None if not found.
+        For binary files (like images), returns a placeholder string.
         """
         project_dir = self.base_projects_dir / project_name
         target_file = project_dir / file_path
@@ -420,12 +421,30 @@ class ClaudeWrapper:
         if not target_file.exists() or not target_file.is_file():
             return None
             
+        # Check if this is an image file
+        file_extension = file_path.split('.')[-1].lower() if '.' in file_path else ''
+        image_extensions = {'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'ico', 'tiff', 'tif'}
+        
+        if file_extension in image_extensions:
+            # For image files, return file size info as a placeholder
+            try:
+                file_size = target_file.stat().st_size
+                return f"Binary image file ({file_size} bytes)"
+            except Exception as e:
+                logger.error(f"Error getting image file info {file_path}: {e}")
+                return None
+            
         try:
             with open(target_file, 'r', encoding='utf-8') as f:
                 return f.read()
         except (UnicodeDecodeError, PermissionError) as e:
             logger.error(f"Error reading file {file_path}: {e}")
-            return None
+            # Try to get file size for binary files
+            try:
+                file_size = target_file.stat().st_size
+                return f"Binary file ({file_size} bytes)"
+            except:
+                return None
 
     def write_file_content(self, project_name: str, file_path: str, content: str) -> Tuple[bool, str]:
         """

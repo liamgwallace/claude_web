@@ -831,18 +831,25 @@ def serve_file_viewer(project_name, file_path):
         # Prepare data for JavaScript (using safe JSON encoding)
         import html
         is_image = is_image_file(file_extension)
-        original_content_json = json.dumps(content if not is_binary and not is_image else "", ensure_ascii=False)
-        project_name_json = json.dumps(project_name, ensure_ascii=False)
-        file_path_json = json.dumps(file_path, ensure_ascii=False)
-        escaped_content_json = json.dumps(html.escape(content) if not is_binary and not is_image else "", ensure_ascii=False)
+        
+        # Ensure content is safe for JSON and HTML embedding
+        safe_content = content if not is_binary and not is_image else ""
+        original_content_json = json.dumps(safe_content, ensure_ascii=True)  # Use ASCII to avoid encoding issues
+        project_name_json = json.dumps(project_name, ensure_ascii=True)
+        file_path_json = json.dumps(file_path, ensure_ascii=True)
+        escaped_content_json = json.dumps(html.escape(safe_content), ensure_ascii=True)
         
         # Create response with explicit HTML content type
         from flask import Response
+        
+        # Build the HTML response step by step to avoid template issues
+        filename = file_path.split('/')[-1]
+        
         html_content = f"""
 <!DOCTYPE html>
 <html>
 <head>
-    <title>{file_path.split('/')[-1]} - {project_name}</title>
+    <title>{filename} - {project_name}</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1107,7 +1114,7 @@ def serve_file_viewer(project_name, file_path):
             </div>
             
             <!-- Edit Mode -->
-            <textarea id="editContent" class="editor-textarea" style="display: none;">{html.escape(content) if not is_binary else ""}</textarea>
+            <textarea id="editContent" class="editor-textarea" style="display: none;">{html.escape(safe_content)}</textarea>
             
             <!-- Loading Overlay -->
             <div id="loadingOverlay" class="loading-overlay">
@@ -1490,7 +1497,7 @@ def serve_file_viewer(project_name, file_path):
                     var fileName = filePath.split('/').pop();
                     console.log('Blob download - fileName:', fileName, 'content length:', content.length);
                     
-                    var blob = new Blob([content], {{ type: 'text/plain;charset=utf-8' }});
+                    var blob = new Blob([content], {{'type': 'text/plain;charset=utf-8'}});
                     
                     var link = document.createElement('a');
                     link.href = URL.createObjectURL(blob);
@@ -1575,7 +1582,7 @@ def serve_file_viewer(project_name, file_path):
             
             // Test if we can fetch the URL directly
             console.log('Testing direct fetch to download URL...');
-            fetch(downloadUrl, {{ method: 'HEAD' }})
+            fetch(downloadUrl, {{'method': 'HEAD'}})
                 .then(response => {{
                     console.log('HEAD request status:', response.status);
                     console.log('HEAD request statusText:', response.statusText);

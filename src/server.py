@@ -21,6 +21,11 @@ def main():
     
     args = parser.parse_args()
     
+    # Change to src directory if not already there
+    if os.path.basename(os.getcwd()) != 'src':
+        src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+        os.chdir(src_dir)
+    
     # Ensure data directory exists
     os.makedirs('../data/projects', exist_ok=True)
     
