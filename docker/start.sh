@@ -35,15 +35,7 @@ else
     exit 1
 fi
 
-# Install Playwright browsers
-echo "🎭 Installing Playwright browsers..."
-if npx --yes playwright install chromium --with-deps > /dev/null 2>&1; then
-    echo "✅ Playwright browsers installed successfully"
-else
-    echo "⚠️  Playwright browser installation failed - continuing without it"
-fi
-
-# Configure Playwright MCP
+# Configure Playwright MCP (browsers already installed at build time)
 echo "🎭 Configuring Playwright MCP..."
 if claude mcp add playwright -- npx @playwright/mcp@latest --isolated --no-sandbox; then
     echo "✅ Playwright MCP configured successfully"

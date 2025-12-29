@@ -26,6 +26,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Install Claude Code CLI globally
 RUN npm install -g @anthropic-ai/claude-code
 
+# Install Playwright and browsers at build time for production
+RUN npx --yes playwright install chromium --with-deps
+
 # Copy application code
 COPY . .
 
