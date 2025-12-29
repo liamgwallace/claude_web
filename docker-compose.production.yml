@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  claude-web:
+    # Use pre-built image from GitHub Container Registry
+    # Replace YOUR_USERNAME with your GitHub username
+    image: ghcr.io/${GITHUB_USERNAME:-YOUR_USERNAME}/claude_web:${IMAGE_TAG:-latest}
+
+    container_name: claude-web
+
+    ports:
+      - "${PORT:-8000}:8000"
+
+    environment:
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - FLASK_DEBUG=${FLASK_DEBUG:-0}
+      - PYTHONPATH=/app
+
+    volumes:
+      # Mount data directory for persistence
+      - ./data:/app/data
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+# Named volume for data (alternative to bind mount)
+volumes:
+  claude-web-data:
+    driver: local

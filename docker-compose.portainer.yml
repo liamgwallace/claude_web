@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  claude-web:
+    # Pre-built image from registry
+    # Option 1: GitHub Container Registry (default, free, private-friendly)
+    image: ghcr.io/YOUR_GITHUB_USERNAME/claude_web:latest
+
+    # Option 2: Docker Hub (uncomment to use, requires DOCKERHUB secrets setup)
+    # image: YOUR_DOCKERHUB_USERNAME/claude-web:latest
+
+    container_name: claude-web
+
+    ports:
+      - "8000:8000"
+
+    environment:
+      # REQUIRED: Add your Claude API key here
+      - CLAUDE_API_KEY=sk-ant-api03-your-api-key-here
+      - FLASK_ENV=production
+      - FLASK_DEBUG=0
+      - PYTHONPATH=/app
+
+    volumes:
+      # Persist project data
+      - claude-web-data:/app/data
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  claude-web-data:
+    driver: local

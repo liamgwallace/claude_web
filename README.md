@@ -62,6 +62,28 @@ A modern web interface for interacting with Claude Code through projects and thr
    - The app will automatically open at http://localhost:8000
    - Or manually navigate to http://localhost:8000
 
+### Option 3: Deploy Pre-built Image (Production)
+
+**No building required!** Use pre-built Docker images from GitHub Container Registry:
+
+```bash
+docker run -d \
+  --name claude-web \
+  -p 8000:8000 \
+  -e CLAUDE_API_KEY=sk-ant-your-key \
+  -v claude-data:/app/data \
+  ghcr.io/YOUR_GITHUB_USERNAME/claude_web:latest
+```
+
+**Deployment Guides:**
+- [Quick Deploy Guide](README.deploy.md) - Deploy in 3 steps
+- [Portainer Setup](PORTAINER.md) - Detailed Portainer instructions
+- [Full Deployment Docs](DEPLOYMENT.md) - All platforms (Railway, Render, Fly.io, etc.)
+
+Images are automatically built on every push and published to:
+- GitHub Container Registry: `ghcr.io/YOUR_USERNAME/claude_web:latest`
+- Docker Hub (optional): `YOUR_DOCKERHUB_USERNAME/claude-web:latest`
+
 ## Usage
 
 ### Getting Started

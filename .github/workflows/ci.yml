@@ -12,7 +12,7 @@ jobs:
     
     strategy:
       matrix:
-        python-version: [3.8, 3.9, "3.10", "3.11"]
+        python-version: [3.9, "3.10", "3.11", "3.12"]
 
     steps:
     - uses: actions/checkout@v4
@@ -34,14 +34,14 @@ jobs:
     
     - name: Test imports and basic functionality
       run: |
-        python -c "import flask; import chainlit; import requests; print('✅ All dependencies imported successfully')"
-        python -c "from claude_wrapper import ClaudeWrapper; print('✅ Claude wrapper imports successfully')"
-        python -c "from app import app; print('✅ Flask app imports successfully')"
+        python -c "import flask; import requests; print('✅ All dependencies imported successfully')"
+        python -c "from src.claude_wrapper import ClaudeWrapper; print('✅ Claude wrapper imports successfully')"
+        python -c "from src.app import app; print('✅ Flask app imports successfully')"
     
     - name: Test API endpoints (without Claude CLI)
       run: |
         python -c "
-        from app import app
+        from src.app import app
         import json
         
         client = app.test_client()
@@ -60,3 +60,42 @@ jobs:
         
         print('✅ Basic API tests passed')
         "
+
+  docker-build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image (test only)
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false
+        tags: claude-web:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Test Docker image health
+      run: |
+        # Start container in background
+        docker run -d --name claude-web-test \
+          -e CLAUDE_API_KEY=test-key \
+          -p 8000:8000 \
+          claude-web:test
+
+        # Wait for container to be healthy (max 60 seconds)
+        timeout 60 bash -c 'until docker inspect --format="{{.State.Health.Status}}" claude-web-test | grep -q healthy; do sleep 2; done' || {
+          echo "Container failed to become healthy"
+          docker logs claude-web-test
+          exit 1
+        }
+
+        echo "✅ Docker container started successfully and is healthy"
+
+        # Cleanup
+        docker stop claude-web-test
+        docker rm claude-web-test
