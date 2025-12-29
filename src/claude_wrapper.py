@@ -224,7 +224,7 @@ class ClaudeWrapper:
             
             # Build base command with permissions and environment
             base_cmd = [claude_cmd, "--dangerously-skip-permissions", "--model", "sonnet"]
-            
+
             if session_id:
                 # Resume existing session
                 cmd = base_cmd + ["--resume", session_id, "-p", message, "--output-format", "json"]
@@ -233,9 +233,10 @@ class ClaudeWrapper:
                 # Start new session
                 cmd = base_cmd + ["-p", message, "--output-format", "json"]
                 logger.info(f"Starting new session for thread {thread_id}")
-            
-            # Get full environment from current process
+
+            # Get full environment from current process and add IS_SANDBOX=1 for Docker/root compatibility
             env = os.environ.copy()
+            env['IS_SANDBOX'] = '1'
             
             result = subprocess.run(
                 cmd,
